@@ -11,7 +11,7 @@ from typing import List
 
 
 BD_TAX = 0.65
-NO_HANDI_FACTOR = 0.5
+NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 1.0
 class GameInfo:
     def __init__(self, matchTime, Host, Guest, Odds: List[float], HandiCapOdds: List[float], Company: str):
@@ -180,12 +180,63 @@ def is_today(game_info:GameInfo):
     # 比较日期部分是否相等
     return date_object_truncated.date() == today_date
 
+
+def handle_print_table(table, game:GameInfo, game_list: List[GameInfo]):
+    table.add_row(
+        [game.matchTime, game.Host, game.Guest, convert_to_red("北单"), str(game.Handicap_num), str(game.Odds[0]),
+         str(game.Odds[1]), str(game.Odds[2])])
+
+    table.add_row(
+        [game_list[0].matchTime, game_list[0].Host, game_list[0].Guest,
+         "欧指", "无",
+         str(game_list[0].Odds[0]) + f"({game_list[0].Company})",
+         str(game_list[1].Odds[1]) + f"({game_list[1].Company})",
+         str(game_list[2].Odds[2]) + f"({game_list[2].Company})"])
+
+    table.add_row(
+        [game_list[3].matchTime,
+         game_list[3].Host, game_list[3].Guest, "让球",
+         game_list[3].Handicap_num,
+         str(game_list[3].Handicap_Odds[0]) + f"({game_list[3].Company})", "无",
+         str(game_list[3].Handicap_Odds[1]) + f"({game_list[3].Company})"])
+
+
+def handle_handi_game(handi_table, game: GameInfo, website_games_list: [GameInfo]):
+    # 北单+1 相当于 对面-1.5（相当于+1.5）
+    # 北单-1 相当于 -1.5
+    if int(game.Handicap_num) > 0 :
+        handi_cap_num_bd = float(game.Handicap_num) + 0.5
+        if website_games_list[3].Handicap_num < 0:
+            return
+        handi_diff = handi_cap_num_bd - float(website_games_list[3].Handicap_num)
+        odd_diff = float(game.Odds[2]) / BD_TAX - float(website_games_list[3].Handicap_Odds[1]) - 1
+
+        if odd_diff > handi_diff * 2:
+            handle_print_table(handi_table, game, website_games_list)
+            amount = 1000 / float(game.Odds[2])
+            print("买", website_games_list[3].matchTime, " ", website_games_list[3].Host, " ",
+                  f"{website_games_list[3].Handicap_num} " + result_dict[2], " ", website_games_list[3].Odds[2], f"总额 {amount}")
+
+    else:
+        handi_cap_num_bd = float(game.Handicap_num) - 0.5
+        if website_games_list[3].Handicap_num > 0:
+            return
+        handi_diff = abs(handi_cap_num_bd) - abs(float(website_games_list[3].Handicap_num))
+        odd_diff = float(game.Odds[0]) / BD_TAX - float(website_games_list[3].Handicap_Odds[0]) - 1
+        if odd_diff > handi_diff * 2:
+            handle_print_table(handi_table, game, website_games_list)
+            amount = 1000 / float(game.Odds[0])
+            print("买", website_games_list[3].matchTime, " ", website_games_list[3].Host, " ",
+                  f"{website_games_list[3].Handicap_num} " + result_dict[0], " ", website_games_list[3].Odds[0], f"总额 {amount}")
+
+
 if __name__ == '__main__':
+    handi_table = PrettyTable()
+    handi_table.field_names = ["时间", "主队", "客队", "类型", "让球", "主胜", "平局", "客胜"]
     # 执行curl命令
     no_handi_games_info_list_bd, handi_games_info_list_bd = get_data_from_bd()
     games_info_list_website = get_data_from_website('')
-    handi_table = PrettyTable()
-    handi_table.field_names = ["时间", "主队", "客队", "类型", "让球", "主胜", "平局", "客胜"]
+
 
     # 处理让球的
     for game in handi_games_info_list_bd:
@@ -195,42 +246,9 @@ if __name__ == '__main__':
                 website_games_list.append(game2)
         if len(website_games_list) == 0 or not is_today(website_games_list[0]):
             continue
-
-        minVal = game.Odds[0]
-        maxVal = game.Odds[0]
-        for odd in game.Odds:
-            minVal = min(minVal, odd)
-            maxVal = max(maxVal, odd)
-
-        # 让球的筛选条件
-        if maxVal - minVal > HANDI_FACTOR:
-            # TODO 增加特殊判断
-            for i in range(len(game.Odds)):
-                if game.Odds[i] - minVal > HANDI_FACTOR:
-                    amount = 1000 / float(game.Odds[i])
-                    print("买", website_games_list[0].matchTime, " ", game.Host, " ", f"{game.Handicap_num} " + result_dict[i], " ", game.Odds[i], f"总额 {amount}")
-
-            oddsVal = [game.Odds[0], game.Odds[1], game.Odds[2]]
-            idx = [0, 1, 2]
-            handi_table.add_row(
-                [game.matchTime, game.Host, game.Guest, convert_to_red("北单"), str(game.Handicap_num),
-                 str(game.Odds[0]),
-                 str(game.Odds[1]), str(game.Odds[2])])
-            game_list = find_max_odd_from_website(website_games_list)
-
-            handi_table.add_row([game_list[0].matchTime, game_list[0].Host, game_list[0].Guest, f"欧指",
-                                     "无",
-                                 str(game_list[0].Odds[0]) + f'({game_list[0].Company})',
-                                 str(game_list[1].Odds[1]) + f'({game_list[1].Company})',
-                                 str(game_list[2].Odds[2]) + f'({game_list[2].Company})'])
-            handi_table.add_row([game_list[0].matchTime, game_list[0].Host, game_list[0].Guest,
-                                 f"让球",
-                                     game_list[3].Handicap_num,
-                                     str(game_list[3].Handicap_Odds[0]) + f'({game_list[3].Company})',
-                                     "无",
-                                     str(game_list[3].Handicap_Odds[1]) + f'({game_list[3].Company})'])
-
-    #处理不让球的
+        handle_handi_game(handi_table, game, website_games_list)
+    print(handi_table)
+    print("不让球")
     no_handi_table = PrettyTable()
     no_handi_table.field_names = ["时间", "主队", "客队", "类型", "让球", "主胜", "平局", "客胜"]
     for game in no_handi_games_info_list_bd:
@@ -258,26 +276,8 @@ if __name__ == '__main__':
                 game.Odds[2] = convert_to_red(game.Odds[2])
                 print("买", " ", game_list[0].matchTime, " ", game.Host, " ",  f"{game.Handicap_num} 负", " " + game.Odds[2], f"总额 {amount}")
 
+            handle_print_table(no_handi_table, game, game_list)
 
-            no_handi_table.add_row(
-                [game.matchTime, game.Host, game.Guest, convert_to_red("北单"), str(game.Handicap_num), str(game.Odds[0]),
-                 str(game.Odds[1]), str(game.Odds[2])])
-
-            no_handi_table.add_row(
-                [game_list[0].matchTime, game_list[0].Host, game_list[0].Guest,
-                 "欧指", "无",
-                 str(game_list[0].Odds[0])+f"({game_list[0].Company})",
-                 str(game_list[1].Odds[1])+f"({game_list[1].Company})",
-                 str(game_list[2].Odds[2])+f"({game_list[2].Company})"])
-
-            no_handi_table.add_row(
-                [game_list[3].matchTime,
-                 game_list[3].Host, game_list[3].Guest, "让球",
-                 game_list[3].Handicap_num,
-                str(game_list[3].Handicap_Odds[0]) + f"({game_list[3].Company})", "无",
-                 str(game_list[3].Handicap_Odds[1]) + f"({game_list[3].Company})"])
-
-    print(handi_table)
     print(no_handi_table)
 
 
