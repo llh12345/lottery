@@ -27,7 +27,7 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
     if len(result) > 0:
         print("数据已存在")
         return
-    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,win,game_type) " + \
+    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type) " + \
                    f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
     data_to_insert = (buy_decision.game.matchTime,
                       buy_decision.game.Host,
@@ -37,12 +37,10 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
                       buy_decision.amount,
                       t,
                       buy_decision.odd,
-                      buy_decision.win,
+                      buy_decision.guess,
                       "让球")
     cursor.execute(sql, data_to_insert)
     conn.commit()
-    # print("Executing SQL statement:")
-    # print(cursor.mogrify(sql, data_to_insert))
 
 def update_game_result(game_info:entity.GameInfo, result: str):
     print(game_info.matchTime, game_info.Host, game_info.Guest, game_info.host_goal, game_info.guest_goal, result)
