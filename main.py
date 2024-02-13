@@ -1,7 +1,7 @@
 from datetime import datetime
 from urllib.parse import urlencode
 import subprocess
-
+import entity
 import xmltodict
 import json
 from prettytable import PrettyTable
@@ -9,20 +9,12 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
+import store
 
 BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 1.0
-class GameInfo:
-    def __init__(self, matchTime, Host, Guest, Odds: List[float], HandiCapOdds: List[float], Company: str):
-        self.matchTime = matchTime
-        self.Host = Host
-        self.Guest = Guest
-        self.Odds = Odds
-        self.Handicap_num = 0.0
-        # 北单的话，handiCapOdds和Odds相同
-        self.Handicap_Odds = HandiCapOdds
-        self.Company = Company
+
 def get_data_from_bd():
     current_time = datetime.now()
     formatted_time = current_time.strftime('%a %b %d %Y %H:%M:%S GMT %z')
@@ -66,28 +58,23 @@ def get_data_from_bd():
             # 格式化为只包含年、月、日的字符串
             formatted_date = datetime_object.strftime('%Y-%m-%d')
             precise_time = item['endTime']
-            gameInfo = GameInfo(precise_time, host, guest, odds_list, odds_list, " 北单")
+            gameInfo = entity.GameInfo(precise_time, host, guest, odds_list, odds_list, " 北单")
             gameInfo.Handicap_num = int(item['handicap'])
             # 0代表不让球
             if item['handicap'] == '0':
                 no_handi_gamesInfoList.append(gameInfo)
-                # print(game_date, ' ', host, ' ', guest, ' ', odds_list[0], ' ', odds_list[1], ' ', odds_list[2])
             else:
                 handi_games_list.append(gameInfo)
 
     return no_handi_gamesInfoList, handi_games_list
 
-class CompanyOdds:
-    def __init__(self, CompanyName, Odds: List[float], handiCapNum):
-        self.CompanyName = CompanyName
-        self.Odds = Odds
-        self.handiCapNum = handiCapNum
-def find_max_odd_from_website(game_info_list: List[GameInfo]):
+
+def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
     company_odds_list = []
-    max_win_odds_game_info = GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_same_odds_game_info = GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_lost_odds_game_info = GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_handi_odds_game_info = GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
+    max_win_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
+    max_same_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
+    max_lost_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
+    max_handi_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
     for game_info in game_info_list:
         if max_win_odds_game_info.Odds[0] < game_info.Odds[0]:
             max_win_odds_game_info = game_info
@@ -125,7 +112,7 @@ def get_data_from_website(date: str):
             list_odds.append(odd["WIN"])
             list_odds.append(odd["SAME"])
             list_odds.append(odd["LOST"])
-            game_info = GameInfo(date, host, guest, list_odds, [-1, -1], odd["COMPANY_NAME"])
+            game_info = entity.GameInfo(date, host, guest, list_odds, [-1, -1], odd["COMPANY_NAME"])
             if "HANDICAP" in odd:
                 handi_cap_num = float(odd["HANDICAP"])
                 handi_host_odd = odd["HOST"]
@@ -139,19 +126,14 @@ def trimspace(s):
     words = s.split()
     joined_text = ''.join(words)
     return joined_text
-def is_same_team(team1, team2):
-    common_characters = 0
-    for char in team1:
-        if char in team2:
-            common_characters += 1
-    return common_characters >= 2
-def is_same_game(game1: GameInfo, game2: GameInfo):
+import util
+def is_same_game(game1: entity.GameInfo, game2: entity.GameInfo):
     game1.Host = trimspace(game1.Host)
     game2.Host = trimspace(game2.Host)
     game1.Guest = trimspace(game1.Guest)
     game2.Guest = trimspace(game2.Guest)
 
-    if is_same_team(game1.Host, game2.Host) and is_same_team(game1.Guest, game2.Guest):
+    if util.is_same_team(game1.Host, game2.Host) and util.is_same_team(game1.Guest, game2.Guest):
         return True
 
 
@@ -160,13 +142,6 @@ def is_same_game(game1: GameInfo, game2: GameInfo):
 
 # odd1是bd
 
-class OddInfo:
-    def __init__(self, odd, success_type, platform):
-        self.odd = odd
-        # 胜 平 负
-        self.success_type = success_type
-        # 平台
-        self.platform = platform
 result_dict = {
     0: "胜",
     1: "平",
@@ -175,11 +150,11 @@ result_dict = {
 def convert_to_red(val):
     return "\033[1;31m" + str(val) + "\033[0m"
 
-def make_decision(game_info: GameInfo):
+def make_decision(game_info: entity.GameInfo):
     pass
 
 #筛选之后8小时的比赛
-def is_after(game_info:GameInfo):
+def is_after(game_info:entity.GameInfo):
     from datetime import datetime, timedelta
     # 将字符串解析为datetime对象
     date_object = datetime.strptime(game_info.matchTime, '%Y-%m-%d %H:%M:%S')
@@ -188,13 +163,13 @@ def is_after(game_info:GameInfo):
     current_time = datetime.now()
 
     # 计算8小时前的时间
-    eight_hours_after = current_time + timedelta(hours=12)
+    eight_hours_after = current_time + timedelta(minutes=10)
 
     # 检查日期是否在最近8小时内
-    return current_time <= date_object <= eight_hours_after
+    return   current_time <= date_object <= eight_hours_after
 
 
-def handle_print_table(table, game:GameInfo, game_list: List[GameInfo]):
+def handle_print_table(table, game:entity.GameInfo, game_list: List[entity.GameInfo]):
     table.add_row(
         [game.matchTime, game.Host, game.Guest, convert_to_red("北单"), str(game.Handicap_num), str(game.Odds[0]),
          str(game.Odds[1]), str(game.Odds[2])])
@@ -214,7 +189,7 @@ def handle_print_table(table, game:GameInfo, game_list: List[GameInfo]):
          str(game_list[3].Handicap_Odds[1]) + f"({game_list[3].Company})"])
 
 
-def handle_handi_game(handi_table, game: GameInfo, max_profit_game_list: [GameInfo]):
+def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: [entity.GameInfo]):
 
     # 北单+1 相当于 对面-1.5（相当于+1.5）
     # 北单-1 相当于 -1.5
@@ -229,7 +204,8 @@ def handle_handi_game(handi_table, game: GameInfo, max_profit_game_list: [GameIn
             amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[0])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                   f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ", max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
-
+            buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[0])
+            store.insert_buy_decision(buy_decision)
     else:
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
@@ -242,6 +218,8 @@ def handle_handi_game(handi_table, game: GameInfo, max_profit_game_list: [GameIn
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                   f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
                   max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
+            buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[2])
+            store.insert_buy_decision(buy_decision)
         # odd_diff = float(game.Odds[0]) / BD_TAX - float(max_profit_game_list[3].Handicap_Odds[0]) - 1
 
 
@@ -285,15 +263,17 @@ if __name__ == '__main__':
                 amount = str(float(1000)/float(game.Odds[0]))
                 game.Odds[0] = convert_to_red(game.Odds[0])
                 print("买", " ", max_profit_game_list[0].matchTime, " ", game.Host, " ", f"{game.Handicap_num} 赢", " " + game.Odds[0], f"总额 {amount}")
+                buy_decision = entity.BuyDecision(max_profit_game_list[0], float(amount), game.Odds[0], result_dict[0])
             if game.Odds[1] / max_profit_game_list[1].Odds[1] > NO_HANDI_FACTOR:
                 amount = str(float(1000)/float(game.Odds[1]))
                 game.Odds[1] = convert_to_red(game.Odds[1])
                 print("买", " ", max_profit_game_list[0].matchTime, " ", game.Host, " ", f"{game.Handicap_num} 平", " " + game.Odds[1], f"总额 {amount}")
+                buy_decision = entity.BuyDecision(max_profit_game_list[0], float(amount), game.Odds[1], result_dict[1])
             if game.Odds[2] / max_profit_game_list[2].Odds[2] > NO_HANDI_FACTOR:
                 amount = str(float(1000)/float(game.Odds[2]))
                 game.Odds[2] = convert_to_red(game.Odds[2])
                 print("买", " ", max_profit_game_list[0].matchTime, " ", game.Host, " ", f"{game.Handicap_num} 负", " " + game.Odds[2], f"总额 {amount}")
-
+                buy_decision = entity.BuyDecision(max_profit_game_list[0], float(amount), game.Odds[2], result_dict[2])
             handle_print_table(no_handi_table, game, max_profit_game_list)
 
     print(no_handi_table)
