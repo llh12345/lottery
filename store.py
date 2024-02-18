@@ -60,7 +60,7 @@ def update_game_result(game_info:entity.GameInfo, result: str):
 
 # 查找某个日期前所有未有结果的比赛
 def query_no_result_game(date_before) -> list[entity.GameInfo]:
-    sql = "SELECT * FROM buy WHERE result is NULL and match_time < %s"
+    sql = "SELECT * FROM buy WHERE (result is NULL or result = '') and match_time < %s"
     cursor = conn.cursor()
     cursor.execute(sql, [date_before])
     result = cursor.fetchall()

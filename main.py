@@ -92,7 +92,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2,3,4,5,6,7")
+    companys = quote("1")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
