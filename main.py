@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from urllib.parse import urlencode
 import subprocess
@@ -133,6 +134,11 @@ import util
 
 
 def is_same_game(game1: entity.GameInfo, game2: entity.GameInfo):
+    # 将字符串解析为datetime对象
+    dobj1 = datetime.strptime(game1.matchTime, '%Y-%m-%d %H:%M:%S')
+    dobj2 = datetime.strptime(game2.matchTime, '%Y-%m-%d %H:%M:%S')
+    if dobj1.timestamp() > dobj2.timestamp():
+        return False
     game1.Host = trimspace(game1.Host)
     game2.Host = trimspace(game2.Host)
     game1.Guest = trimspace(game1.Guest)
@@ -153,7 +159,8 @@ result_dict = {
     2: "负",
 }
 def convert_to_red(val):
-    return "\033[1;31m" + str(val) + "\033[0m"
+    # return "\033[1;31m" + str(val) + "\033[0m"
+    return str(val)
 
 def make_decision(game_info: entity.GameInfo):
     pass
@@ -195,7 +202,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             return
         handi_diff = handi_cap_num_bd - float(max_profit_game_list[3].Handicap_num)
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
-        if float(game.Odds[2]) / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+        expect_diff = float(game.Odds[2]) / BD_TAX - expect_odd
+        if expect_diff + EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[2]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
             amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[0])
@@ -204,6 +212,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[0])
             buy_decision.handi_diff = handi_diff
             buy_decision.odd_diff = abs(odd_diff)
+            buy_decision.expect_diff = expect_diff
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
@@ -211,8 +220,10 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handicap_odds = max_profit_game_list[3].Handicap_Odds
         if game.Odds[0] < game.Odds[2]:
             # 主队是强队，强队的期望赔率
-            expect_odd = (handicap_odds[0] + 1) + (0.5) * 2
-            if game.Odds[0] / BD_TAX  <  expect_odd - EXPECT_ODD_DIFF:
+            handi_diff = 0.5 + handicap_num
+            expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
+            expect_diff = game.Odds[0] / BD_TAX  -  expect_odd
+            if expect_diff + EXPECT_ODD_DIFF < 0:
                 odd_diff = game.Odds[0] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[0])
@@ -220,14 +231,18 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
                       max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
                 buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[2])
-                buy_decision.handi_diff = 0
+                buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
+                buy_decision.expect_diff = expect_diff
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
         else:
+            handi_diff = 0.5 - handicap_num
+            handicap_num = max_profit_game_list[3].Handicap_num
             # 客队是强队
-            expect_odd = (handicap_odds[1] + 1) + (0.5) * 2
-            if  game.Odds[2] / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+            expect_odd = (handicap_odds[1] + 1) + (handi_diff) * 2
+            expect_diff = game.Odds[2] / BD_TAX - expect_odd
+            if  expect_diff + EXPECT_ODD_DIFF < 0:
                 odd_diff = game.Odds[2] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[1])
@@ -235,8 +250,9 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
                       max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
                 buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[0])
-                buy_decision.handi_diff = 0
+                buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
+                buy_decision.expect_diff = expect_diff
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
@@ -248,7 +264,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
             return
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
-        if float(game.Odds[0]) / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+        expect_diff = float(game.Odds[2]) / BD_TAX - expect_odd
+        if expect_diff +  EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
             amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[1])
@@ -258,6 +275,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[2])
             buy_decision.handi_diff = handi_diff
             buy_decision.odd_diff = abs(odd_diff)
+            buy_decision.expect_diff = expect_diff
             store.insert_buy_decision(buy_decision)
             return buy_decision
 
@@ -283,7 +301,7 @@ def start_to_get_solution():
         if buy_decision is not None:
             buy_decisions.append(buy_decision)
     print(handi_table)
-    return buy_decisions
+    return buy_decisions, handi_table
 
 import os
 
@@ -295,7 +313,15 @@ def index():
 
     return render_template('table_template.html', data=buy_decisions)
 if __name__ == '__main__':
-    app.run(debug=True, port=9191)
-
+    while True:
+        print(datetime.now())
+        buy_decisions, handi_tables = start_to_get_solution()
+        result_str = ''
+        for buy_decision in buy_decisions:
+            result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
+        print("start to send email")
+        util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "1014206040@qq.com")
+        util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "13537731653@163.com")
+        time.sleep(60 * 10)
 
 
