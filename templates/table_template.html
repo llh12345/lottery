@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Table</title>
+</head>
+<body>
+
+<h2>Data Table</h2>
+
+<table border="1">
+    <tr>
+        <th>时间</th>
+        <th>主队</th>
+        <th>客队</th>
+        <th>让球</th>
+        <th>推荐</th>
+        <th>赔率</th>
+    </tr>
+    {% for row in data %}
+        <tr>
+            <td>{{row.game.matchTime}}</td>
+            <td>{{ row.game.Host }}</td>
+            <td>{{ row.game.Guest }}</td>
+            <td> {{row.game.Handicap_num}}</td>
+            <td> 主({{row.guess}})</td>
+            <td>{{ row.odd }}</td>
+
+        </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

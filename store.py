@@ -1,7 +1,7 @@
 import mysql.connector
 
 import entity
-
+import util
 # 填写数据库连接信息
 host = "localhost"
 user = "root"
@@ -17,6 +17,8 @@ conn = mysql.connector.connect(
 )
 
 def insert_buy_decision(buy_decision:entity.BuyDecision):
+    if not util.is_after(buy_decision.game, 15):
+        return
     cursor = conn.cursor()
     from datetime import datetime
     t = datetime.now()
