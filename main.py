@@ -14,7 +14,7 @@ import store
 BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 1.0
-
+EXPECT_ODD_DIFF = 0.2
 def get_data_from_bd():
     current_time = datetime.now()
     formatted_time = current_time.strftime('%a %b %d %Y %H:%M:%S GMT %z')
@@ -165,10 +165,10 @@ def is_after(game_info:entity.GameInfo):
     current_time = datetime.now()
 
     # 计算8小时前的时间
-    eight_hours_after = current_time + timedelta(minutes=10)
+    eight_hours_after = current_time + timedelta(hours=10)
 
     # 检查日期是否在最近8小时内
-    return   current_time <= date_object <= eight_hours_after
+    return   date_object <= eight_hours_after
 
 
 def handle_print_table(table, game:entity.GameInfo, game_list: List[entity.GameInfo]):
@@ -192,21 +192,27 @@ def handle_print_table(table, game:entity.GameInfo, game_list: List[entity.GameI
 
 
 def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: [entity.GameInfo]):
-
     # 北单+1 相当于 对面-1.5（相当于+1.5）
     # 北单-1 相当于 -1.5
     if int(game.Handicap_num) > 0 :
         handi_cap_num_bd = float(game.Handicap_num) + 0.5
+        handi_diff = abs(abs(handi_cap_num_bd) - abs(max_profit_game_list[3].Handicap_num))
+        if handi_diff > 0.75:
+            print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
+            return
         if max_profit_game_list[3].Handicap_num < 0:
             return
         handi_diff = handi_cap_num_bd - float(max_profit_game_list[3].Handicap_num)
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
-        if float(game.Odds[2]) / BD_TAX < expect_odd - 0.2:
+        if float(game.Odds[2]) / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+            odd_diff = float(game.Odds[2]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
             amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[0])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                   f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ", max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[0])
+            buy_decision.handi_diff = handi_diff
+            buy_decision.odd_diff = abs(odd_diff)
             store.insert_buy_decision(buy_decision)
     elif int(game.Handicap_num) == 0:
         handicap_num = max_profit_game_list[3].Handicap_num
@@ -214,38 +220,50 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         if game.Odds[0] < game.Odds[2]:
             # 主队是强队，强队的期望赔率
             expect_odd = (handicap_odds[0] + 1) + (0.5) * 2
-            if game.Odds[0] / BD_TAX  <  expect_odd - 0.2:
+            if game.Odds[0] / BD_TAX  <  expect_odd - EXPECT_ODD_DIFF:
+                odd_diff = game.Odds[0] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[0])
                 print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
                       max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
                 buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[2])
+                buy_decision.handi_diff = 0
+                buy_decision.odd_diff = abs(odd_diff)
                 store.insert_buy_decision(buy_decision)
         else:
             # 客队是强队
             expect_odd = (handicap_odds[1] + 1) + (0.5) * 2
-            if  game.Odds[2] / BD_TAX < expect_odd - 0.2:
+            if  game.Odds[2] / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+                odd_diff = game.Odds[2] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[1])
                 print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
                       max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
                 buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[0])
+                buy_decision.handi_diff = 0
+                buy_decision.odd_diff = abs(odd_diff)
                 store.insert_buy_decision(buy_decision)
     else:
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
             return
-        handi_diff = abs(handi_cap_num_bd) - abs(float(max_profit_game_list[3].Handicap_num))
+        handi_diff = abs(abs(handi_cap_num_bd) - abs(float(max_profit_game_list[3].Handicap_num)))
+        if handi_diff > 0.75:
+            print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
+            return
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
-        if float(game.Odds[0]) / BD_TAX < expect_odd - 0.2:
+        if float(game.Odds[0]) / BD_TAX < expect_odd - EXPECT_ODD_DIFF:
+            odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
             amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[1])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                   f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
                   max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[2])
+            buy_decision.handi_diff = handi_diff
+            buy_decision.odd_diff = abs(odd_diff)
             store.insert_buy_decision(buy_decision)
 
 
@@ -259,9 +277,6 @@ if __name__ == '__main__':
     handi_games_info_list_bd.extend(no_handi_games_info_list_bd)
     # 处理让球的
     for game in handi_games_info_list_bd:
-        if "皇家马德里" in game.Guest:
-            print()
-            pass
         website_games_list = []
         for game2 in games_info_list_website:
             if is_same_game(game, game2):

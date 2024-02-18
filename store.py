@@ -17,7 +17,6 @@ conn = mysql.connector.connect(
 )
 
 def insert_buy_decision(buy_decision:entity.BuyDecision):
-    print("exec sql")
     cursor = conn.cursor()
     from datetime import datetime
     t = datetime.now()
@@ -25,10 +24,15 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
     cursor.execute(select_query, (buy_decision.game.matchTime, buy_decision.game.Host, buy_decision.game.Guest))
     result = cursor.fetchall()
     if len(result) > 0:
-        print("数据已存在")
         return
-    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type) " + \
-                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+    handi_diff = 0
+    if buy_decision.handi_diff is not None:
+        handi_diff = buy_decision.handi_diff
+    odd_diff = -1
+    if buy_decision.odd_diff is not None:
+        odd_diff = buy_decision.odd_diff
+    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type, handi_diff, odd_diff) " + \
+                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
     data_to_insert = (buy_decision.game.matchTime,
                       buy_decision.game.Host,
                       buy_decision.game.Guest,
@@ -38,7 +42,10 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
                       t,
                       buy_decision.odd,
                       buy_decision.guess,
-                      "让球")
+                      "让球",
+                      handi_diff,
+                      odd_diff
+                      )
     cursor.execute(sql, data_to_insert)
     conn.commit()
 

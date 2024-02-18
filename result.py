@@ -58,8 +58,8 @@ def update_result(game_list_no_result, game_result_list):
                         result = "输"
                         if host_goal - guest_goal + handi_cap_num == -0.25:
                             result = "输半"
-                elif host_goal - guest_goal + handi_cap_num == 0 and guess == "平":
-                    result = "赢"
+                elif host_goal - guest_goal + handi_cap_num == 0:
+                    result = "平"
 
                 update_game_result(game_no_result, result)
 if __name__ == '__main__':
