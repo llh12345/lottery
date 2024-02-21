@@ -39,36 +39,45 @@ def get_data_from_bd():
     data_dict = data_dict["info"]['matches']['matchInfo']
     no_handi_gamesInfoList = []
     handi_games_list = []
+    # 判断data_dict是否是list
+    if not isinstance(data_dict, list):
+        data_dict = [data_dict]
     for items_with_date in data_dict:
         date = items_with_date['matchTime']
         items = items_with_date['matchelem']['item']
         game_date = date['#text']
         for item in items:
-            host = item['host']
-            guest = item['guest']
-            sp1 = round(float(item['spitem']['sp1']) * BD_TAX , 4)
-            sp2 = round(float(item['spitem']['sp2']) * BD_TAX, 4)
-            sp3 = round(float(item['spitem']['sp3']) * BD_TAX, 4)
-            odds_list = []
-            odds_list.append(sp1)
-            odds_list.append(sp2)
-            odds_list.append(sp3)
-            # 小于0代表已开奖
-            if sp1 < 0 or sp2 < 0 or sp3 < 0:
-                # print(host, ' ', guest, ' ', item['spitem']['sp1'], ' ', item['spitem']['sp2'], ' ', item['spitem']['sp3'])
+            try:
+                host = item['host']
+                guest = item['guest']
+                sp1 = round(float(item['spitem']['sp1']) * BD_TAX , 4)
+                sp2 = round(float(item['spitem']['sp2']) * BD_TAX, 4)
+                sp3 = round(float(item['spitem']['sp3']) * BD_TAX, 4)
+                odds_list = []
+                odds_list.append(sp1)
+                odds_list.append(sp2)
+                odds_list.append(sp3)
+                # 小于0代表已开奖
+                if sp1 < 0 or sp2 < 0 or sp3 < 0:
+                    # print(host, ' ', guest, ' ', item['spitem']['sp1'], ' ', item['spitem']['sp2'], ' ', item['spitem']['sp3'])
+                    continue
+                # 解析日期字符串为datetime对象
+                if not game_date.startswith('20'):
+                    game_date = '20' + game_date
+                datetime_object = datetime.strptime(game_date, '%Y-%m-%d %H:%M:%S')
+                # 格式化为只包含年、月、日的字符串
+                formatted_date = datetime_object.strftime('%Y-%m-%d')
+                precise_time = item['endTime']
+                gameInfo = entity.GameInfo(precise_time, host, guest, odds_list, odds_list, " 北单")
+                gameInfo.Handicap_num = int(item['handicap'])
+                # 0代表不让球
+                if item['handicap'] == '0':
+                    no_handi_gamesInfoList.append(gameInfo)
+                else:
+                    handi_games_list.append(gameInfo)
+            except Exception as e:
+                print(e)
                 continue
-            # 解析日期字符串为datetime对象
-            datetime_object = datetime.strptime(game_date, '%Y-%m-%d %H:%M:%S')
-            # 格式化为只包含年、月、日的字符串
-            formatted_date = datetime_object.strftime('%Y-%m-%d')
-            precise_time = item['endTime']
-            gameInfo = entity.GameInfo(precise_time, host, guest, odds_list, odds_list, " 北单")
-            gameInfo.Handicap_num = int(item['handicap'])
-            # 0代表不让球
-            if item['handicap'] == '0':
-                no_handi_gamesInfoList.append(gameInfo)
-            else:
-                handi_games_list.append(gameInfo)
 
     return no_handi_gamesInfoList, handi_games_list
 
@@ -92,7 +101,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1")
+    companys = quote("1,2")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
@@ -313,15 +322,16 @@ def index():
 
     return render_template('table_template.html', data=buy_decisions)
 if __name__ == '__main__':
-    while True:
-        print(datetime.now())
-        buy_decisions, handi_tables = start_to_get_solution()
-        result_str = ''
-        for buy_decision in buy_decisions:
-            result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
-        print("start to send email")
-        util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "1014206040@qq.com")
-        util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "13537731653@163.com")
-        time.sleep(60 * 10)
+    app.run(":5000", debug=True)
+    # while True:
+    #     print(datetime.now())
+    #     buy_decisions, handi_tables = start_to_get_solution()
+    #     result_str = ''
+    #     for buy_decision in buy_decisions:
+    #         result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
+    #     print("start to send email")
+    #     util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "1014206040@qq.com")
+    #     util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "13537731653@163.com")
+    #     time.sleep(60 * 40)
 
 

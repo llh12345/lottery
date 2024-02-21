@@ -1,1 +1,7 @@
 .idea
+*html
+nohup.out
+ompressed
+*log
+*php
+*pyc
