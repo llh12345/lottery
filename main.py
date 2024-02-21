@@ -318,11 +318,11 @@ app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 't
 @app.route('/test')
 def index():
     # 示例数据，实际中可以从数据库或其他来源获取
-    buy_decisions = start_to_get_solution()
+    buy_decisions, handi_table = start_to_get_solution()
 
     return render_template('table_template.html', data=buy_decisions)
 if __name__ == '__main__':
-    app.run(":5000", debug=True)
+    app.run(debug=True, port=5000)
     # while True:
     #     print(datetime.now())
     #     buy_decisions, handi_tables = start_to_get_solution()
