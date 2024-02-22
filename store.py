@@ -4,8 +4,8 @@ import entity
 import util
 # 填写数据库连接信息
 host = "localhost"
-user = "root"
-password = "YX2023@offline"
+user = "remote"
+password = "YX2021@greendog"
 database = "lottery"
 
 # 创建连接
@@ -48,6 +48,7 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
                       handi_diff,
                       odd_diff
                       )
+    print("%s %s" % (sql, data_to_insert))
     cursor.execute(sql, data_to_insert)
     conn.commit()
 
@@ -80,6 +81,9 @@ def query_no_result_game(date_before) -> list[entity.GameInfo]:
 if __name__ == '__main__':
     game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
     buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
+    buy_decision.handi_diff = 0.75
+    buy_decision.odd_diff = 0.75
+
     insert_buy_decision(buy_decision)
     conn.commit()
     conn.close()

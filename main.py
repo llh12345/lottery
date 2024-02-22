@@ -12,7 +12,7 @@ from typing import List
 
 import store
 from flask import Flask, render_template
-
+import multiprocessing
 
 
 BD_TAX = 0.65
@@ -273,7 +273,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
             return
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
-        expect_diff = float(game.Odds[2]) / BD_TAX - expect_odd
+        expect_diff = float(game.Odds[0]) / BD_TAX - expect_odd
         if expect_diff +  EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
@@ -316,22 +316,30 @@ import os
 
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 @app.route('/test')
-def index():
+def test():
     # 示例数据，实际中可以从数据库或其他来源获取
     buy_decisions, handi_table = start_to_get_solution()
 
     return render_template('table_template.html', data=buy_decisions)
+@app.route('/index')
+def index():
+    # 示例数据，实际中可以从数据库或其他来源获取
+
+    return "hello world"
+def crontab():
+    print("start crontab")
+    while True:
+        print(datetime.now())
+        buy_decisions, handi_tables = start_to_get_solution()
+        result_str = ''
+        for buy_decision in buy_decisions:
+            result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
+        print("start to send email")
+        time.sleep(60 * 10)
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-    # while True:
-    #     print(datetime.now())
-    #     buy_decisions, handi_tables = start_to_get_solution()
-    #     result_str = ''
-    #     for buy_decision in buy_decisions:
-    #         result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
-    #     print("start to send email")
-    #     util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "1014206040@qq.com")
-    #     util.send_email("lottery", result_str + '\n' + handi_tables.get_string(), "13537731653@163.com")
-    #     time.sleep(60 * 40)
+    process1 = multiprocessing.Process(target=crontab)
+    process1.start()
+    app.run(host='0.0.0.0', port=9191)
+    
 
 
