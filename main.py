@@ -201,7 +201,9 @@ def handle_print_table(table, game:entity.GameInfo, game_list: List[entity.GameI
 def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: [entity.GameInfo]):
     # 北单+1 相当于 对面-1.5（相当于+1.5）
     # 北单-1 相当于 -1.5
+    # TODO 重构下面逻辑
     if int(game.Handicap_num) > 0 :
+        # 客队是强队
         handi_cap_num_bd = float(game.Handicap_num) + 0.5
         handi_diff = abs(abs(handi_cap_num_bd) - abs(max_profit_game_list[3].Handicap_num))
         if handi_diff > HANDI_DIFF_FACTOR:
@@ -225,46 +227,47 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
+        # 主队是强队，强队的期望赔率
         handicap_num = max_profit_game_list[3].Handicap_num
         handicap_odds = max_profit_game_list[3].Handicap_Odds
         if game.Odds[0] < game.Odds[2]:
-            # 主队是强队，强队的期望赔率
             handi_diff = 0.5 + handicap_num
             expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
             expect_diff = game.Odds[0] / BD_TAX  -  expect_odd
             if expect_diff + EXPECT_ODD_DIFF < 0:
                 odd_diff = game.Odds[0] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
-                amount = 1000 / float(handicap_odds[0])
+                amount = 1000 / float(handicap_odds[1])
                 print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
-                      max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
-                buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[2])
+                      max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
+                buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[2])
                 buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
                 buy_decision.expect_diff = expect_diff
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
         else:
+            # 客队是强队
             handi_diff = 0.5 - handicap_num
             handicap_num = max_profit_game_list[3].Handicap_num
-            # 客队是强队
             expect_odd = (handicap_odds[1] + 1) + (handi_diff) * 2
             expect_diff = game.Odds[2] / BD_TAX - expect_odd
             if  expect_diff + EXPECT_ODD_DIFF < 0:
                 odd_diff = game.Odds[2] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
-                amount = 1000 / float(handicap_odds[1])
+                amount = 1000 / float(handicap_odds[0])
                 print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                       f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
-                      max_profit_game_list[3].Handicap_Odds[1], f"总额 {amount}")
-                buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[1], result_dict[0])
+                      max_profit_game_list[3].Handicap_Odds[0], f"总额 {amount}")
+                buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0], result_dict[0])
                 buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
                 buy_decision.expect_diff = expect_diff
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
+        # 主队是强队
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
             return
@@ -272,7 +275,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         if handi_diff > HANDI_DIFF_FACTOR:
             print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
             return
-        expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
+        expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[0] + 1
         expect_diff = float(game.Odds[0]) / BD_TAX - expect_odd
         if expect_diff +  EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
