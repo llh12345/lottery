@@ -208,9 +208,9 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handi_diff = abs(abs(handi_cap_num_bd) - abs(max_profit_game_list[3].Handicap_num))
         if handi_diff > HANDI_DIFF_FACTOR:
             print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
-            return
+            return None
         if max_profit_game_list[3].Handicap_num < 0:
-            return
+            return None
         handi_diff = handi_cap_num_bd - float(max_profit_game_list[3].Handicap_num)
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
         expect_diff = float(game.Odds[2]) / BD_TAX - expect_odd
@@ -227,6 +227,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
+        if abs(game.Odds[0] - game.Odds[2]) < 0.3:
+            return None
         # 主队是强队，强队的期望赔率
         handicap_num = max_profit_game_list[3].Handicap_num
         handicap_odds = max_profit_game_list[3].Handicap_Odds

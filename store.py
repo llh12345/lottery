@@ -61,19 +61,19 @@ def update_game_result(game_info:entity.GameInfo, result: str):
 
 # 查找某个日期前所有未有结果的比赛
 def query_no_result_game(date_before) -> list[entity.GameInfo]:
-    sql = "SELECT * FROM buy WHERE (result is NULL or result = '') and match_time < %s"
+    sql = "SELECT match_time, host, guest, website_type, handicap_num, guess FROM buy WHERE (result is NULL or result = '') and match_time < %s"
     cursor = conn.cursor()
     cursor.execute(sql, [date_before])
     result = cursor.fetchall()
     game_info_list = []
     for row in result:
-        match_time = row[1]
-        host = row[2]
-        guest = row[3]
-        website_type = row[4]
+        match_time = row[0]
+        host = row[1]
+        guest = row[2]
+        website_type = row[3]
         game_info = entity.GameInfo(match_time, host, guest, [], [], website_type)
-        game_info.handicap_num = row[5]
-        game_info.guess = row[10]
+        game_info.handicap_num = row[4]
+        game_info.guess = row[5]
         game_info_list.append(game_info)
     return game_info_list
 
