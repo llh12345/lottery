@@ -6,6 +6,6 @@
 #  sleep 600
 #done
 ps aux | grep "main.py" | awk '{print $2}' | xargs kill -9
-nohup python3 main.py >> result.log 2>&1 &
+nohup python3 main.py 2>&1 &
 
 #ps aux | grep "main.py" | awk '{print $2}' | xargs kill -9

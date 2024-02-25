@@ -28,13 +28,19 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
     if len(result) > 0:
         return
     handi_diff = 0
-    if buy_decision.handi_diff is not None:
-        handi_diff = buy_decision.handi_diff
     odd_diff = -1
-    if buy_decision.odd_diff is not None:
-        odd_diff = buy_decision.odd_diff
-    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type, handi_diff, odd_diff) " + \
-                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+    expect_diff = -1
+    try:
+        if buy_decision.handi_diff is not None:
+            handi_diff = buy_decision.handi_diff
+        if buy_decision.odd_diff is not None:
+            odd_diff = buy_decision.odd_diff
+        if buy_decision.expect_diff is not None:
+            expect_diff = buy_decision.expect_diff
+    except Exception as e:
+        print(e)
+    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type, handi_diff, odd_diff, expect_diff) " + \
+                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
     data_to_insert = (buy_decision.game.matchTime,
                       buy_decision.game.Host,
                       buy_decision.game.Guest,
@@ -46,7 +52,8 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
                       buy_decision.guess,
                       "让球",
                       handi_diff,
-                      odd_diff
+                      odd_diff,
+                      expect_diff
                       )
     print("%s %s" % (sql, data_to_insert))
     cursor.execute(sql, data_to_insert)
@@ -61,6 +68,10 @@ def update_game_result(game_info:entity.GameInfo, result: str):
 
 # 查找某个日期前所有未有结果的比赛
 def query_no_result_game(date_before) -> list[entity.GameInfo]:
+    # import datetime
+    # date_before_str = '2024-02-24 20:00:00'
+    # date_before = datetime.strptime(date_before_str, '%Y-%m-%d %H:%M:%S')
+
     sql = "SELECT match_time, host, guest, website_type, handicap_num, guess FROM buy WHERE (result is NULL or result = '') and match_time < %s"
     cursor = conn.cursor()
     cursor.execute(sql, [date_before])

@@ -27,12 +27,15 @@ def get_data_from_bd():
     params = {'_':timestamp , 'dt': formatted_time}
     paramsEncoded = urlencode(params)
     command = f"curl 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.stdout == "":
-        print(f"error {result.stderr}")
-        sys.exit(1)
-    ordered_dict = xmltodict.parse(result.stdout)
-
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.stdout == "":
+            print(f"error {result.stderr}")
+            sys.exit(1)
+        ordered_dict = xmltodict.parse(result.stdout)
+    except Exception as e:
+        print(f"encouter exception {e}")
+        return [],[]
     # 将 OrderedDict 转换为 JSON 字符串
     json_data = json.dumps(ordered_dict, indent=2)
     data_dict = json.loads(json_data)
@@ -101,7 +104,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2")
+    companys = quote("1,2,3")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
@@ -227,11 +230,30 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
-        if abs(game.Odds[0] - game.Odds[2]) < 0.3:
-            return None
+        # if abs(game.Odds[0] - game.Odds[2]) < 0.3:
+        #     return None
         # 主队是强队，强队的期望赔率
         handicap_num = max_profit_game_list[3].Handicap_num
         handicap_odds = max_profit_game_list[3].Handicap_Odds
+        win_odd_euro = max_profit_game_list[3].Odds[0] # 主胜赔率
+        lost_odd_euro = max_profit_game_list[3].Odds[2] # 主负赔率
+        if game.Odds[0] < win_odd_euro and game.Odds[2] > lost_odd_euro:
+            # 主队热度高
+            amount = 1000 / float(handicap_odds[1])
+            print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
+                  f"{max_profit_game_list[3].Handicap_num} " + result_dict[2], " ",
+                  handicap_odds[1], f"总额 {amount}")
+            buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
+            store.insert_buy_decision(buy_decision)
+            return buy_decision
+        if game.Odds[0] >  win_odd_euro and game.Odds[2] < lost_odd_euro:
+            amount = 1000 / float(handicap_odds[0])
+            print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
+                    f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
+                    handicap_odds[0], f"总额 {amount}")
+            buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
+            store.insert_buy_decision(buy_decision)
+            return buy_decision
         if game.Odds[0] < game.Odds[2]:
             handi_diff = 0.5 + handicap_num
             expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
@@ -273,10 +295,12 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
             return
-        handi_diff = abs(abs(handi_cap_num_bd) - abs(float(max_profit_game_list[3].Handicap_num)))
-        if handi_diff > HANDI_DIFF_FACTOR:
-            print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
-            return
+        # handi_diff = abs(abs(handi_cap_num_bd) - abs(float(max_profit_game_list[3].Handicap_num)))
+        
+        # if handi_diff > HANDI_DIFF_FACTOR:
+        #     print(game.Host, game.Guest, f"handi_diff is {handi_diff}")
+        #     return
+        handi_diff = float(max_profit_game_list[3].Handicap_num) - handi_cap_num_bd
         expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[0] + 1
         expect_diff = float(game.Odds[0]) / BD_TAX - expect_odd
         if expect_diff +  EXPECT_ODD_DIFF < 0:
@@ -299,7 +323,10 @@ def start_to_get_solution():
     handi_table.field_names = ["时间", "主队", "客队", "类型", "让球", "主胜", "平局", "客胜"]
     # 执行curl命令
     no_handi_games_info_list_bd, handi_games_info_list_bd = get_data_from_bd()
+    print(len(no_handi_games_info_list_bd))
+    print(len(handi_games_info_list_bd))
     games_info_list_website = get_data_from_website('')
+    print(len(games_info_list_website))
     handi_games_info_list_bd.extend(no_handi_games_info_list_bd)
     # 处理让球的
     handi_games_info_list_bd = sorted(handi_games_info_list_bd, key=lambda x: x.matchTime, reverse=False)
@@ -314,7 +341,7 @@ def start_to_get_solution():
         buy_decision = handle_handi_game(handi_table, game, max_profit_game_list)
         if buy_decision is not None:
             buy_decisions.append(buy_decision)
-    print(handi_table)
+    # print(handi_table)
     return buy_decisions, handi_table
 
 import os
@@ -323,8 +350,9 @@ app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 't
 @app.route('/test')
 def test():
     # 示例数据，实际中可以从数据库或其他来源获取
+    print("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
-
+    print("buy_decision", len(buy_decisions))
     return render_template('table_template.html', data=buy_decisions)
 @app.route('/index')
 def index():
@@ -340,7 +368,7 @@ def crontab():
         for buy_decision in buy_decisions:
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
         print("start to send email")
-        time.sleep(60 * 10)
+        time.sleep(60 * 2)
 if __name__ == '__main__':
     process1 = multiprocessing.Process(target=crontab)
     process1.start()

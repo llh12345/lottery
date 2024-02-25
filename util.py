@@ -18,6 +18,7 @@ def is_after(game_info:entity.GameInfo, mins):
 
     # 计算8小时前的时间
     eight_hours_after = current_time + timedelta(minutes=mins)
+    # eight_hours_after = current_time + timedelta(hours=8)
 
     # 检查日期是否在最近8小时内
     return  current_time <= date_object <= eight_hours_after

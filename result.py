@@ -5,6 +5,7 @@ import subprocess
 import json
 from datetime import datetime, timedelta
 import util
+
 def get_game_result_by_date(date: str) :
     command = f'curl https://odds.zgzcw.com/odds/oyzs_ajax.action -d "type=bd&date={date}&companys=1" -compressed'
     result = subprocess.run(command, shell=True, capture_output=True, text=True)    # curl
