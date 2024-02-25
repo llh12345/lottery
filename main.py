@@ -26,7 +26,26 @@ def get_data_from_bd():
     timestamp = int(current_time.timestamp() * 1000)
     params = {'_':timestamp , 'dt': formatted_time}
     paramsEncoded = urlencode(params)
-    command = f"curl 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
+    command = f'''
+    curl 'https://bjlot.com/data/200ParlayGetGame_24024.xml?{paramsEncoded}' \
+      -H 'Accept: application/xml, text/xml, */*; q=0.01' \
+      -H 'Accept-Language: zh-CN,zh;q=0.9,ko;q=0.8' \
+      -H 'Cache-Control: no-cache' \
+      -H 'Connection: keep-alive' \
+      -H 'Pragma: no-cache' \
+      -H 'Referer: https://bjlot.com/ssm/dc200_spf.shtml' \
+      -H 'Sec-Fetch-Dest: empty' \
+      -H 'Sec-Fetch-Mode: cors' \
+      -H 'Sec-Fetch-Site: same-origin' \
+      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' \
+      -H 'X-Requested-With: XMLHttpRequest' \
+      -H 'sec-ch-ua: "Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"' \
+      -H 'sec-ch-ua-mobile: ?0' \
+      -H 'sec-ch-ua-platform: "macOS"' --insecure
+    '''
+    # command = f"curl -H 'charset=utf-8' 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
+    # print(command)
+
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.stdout == "":
@@ -237,7 +256,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handicap_odds = max_profit_game_list[3].Handicap_Odds
         win_odd_euro = max_profit_game_list[3].Odds[0] # 主胜赔率
         lost_odd_euro = max_profit_game_list[3].Odds[2] # 主负赔率
-        if game.Odds[0] < win_odd_euro and game.Odds[2] > lost_odd_euro:
+        if game.Odds[0] / BD_TAX < win_odd_euro and game.Odds[2] / BD_TAX > lost_odd_euro:
             # 主队热度高
             amount = 1000 / float(handicap_odds[1])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
@@ -246,7 +265,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
             store.insert_buy_decision(buy_decision)
             return buy_decision
-        if game.Odds[0] >  win_odd_euro and game.Odds[2] < lost_odd_euro:
+        if game.Odds[0]/ BD_TAX >  win_odd_euro and game.Odds[2]/ BD_TAX < lost_odd_euro:
             amount = 1000 / float(handicap_odds[0])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                     f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
@@ -254,7 +273,9 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
             store.insert_buy_decision(buy_decision)
             return buy_decision
-        if game.Odds[0] < game.Odds[2]:
+        if handicap_num == 0 and abs(game.Odds[0] - game.Odds[2] < 0.2):
+            return None
+        if max_profit_game_list[3].Handicap_num < 0 or (max_profit_game_list[3].Handicap_num == 0 and max_profit_game_list[3].Handicap_Odds[0] < max_profit_game_list[3].Handicap_Odds[1]):
             handi_diff = 0.5 + handicap_num
             expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
             expect_diff = game.Odds[0] / BD_TAX  -  expect_odd
