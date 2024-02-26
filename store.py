@@ -7,6 +7,7 @@ host = "localhost"
 user = "remote"
 password = "YX2021@greendog"
 database = "lottery"
+from datetime import datetime, timedelta
 
 # 创建连接
 conn = mysql.connector.connect(
@@ -88,14 +89,46 @@ def query_no_result_game(date_before) -> list[entity.GameInfo]:
         game_info_list.append(game_info)
     return game_info_list
 
+def calculate_suiccess_rate(date):
+    sql1 = '''
+    select sum(odd) as r from (
+    select sum(odd) as odd FROM lottery.buy 
+    where match_time > %s and result like '赢'
+    union
+    select sum(odd/2) as odd from lottery.buy
+    where match_time > %s and result like '赢半') as f
+    '''
+    cursor = conn.cursor()
+    cursor.execute(sql1,[date, date])
+    result = cursor.fetchall()
+    success=result[0][0]
 
+
+    sql2 = '''
+    select sum(odd) as r from (
+    select sum(1) as odd FROM lottery.buy 
+    where match_time > %s and result like '输'
+    union
+    select sum(0.5) as odd from lottery.buy
+    where match_time > %s and result like '输半') as f
+    '''
+    cursor = conn.cursor()
+    cursor.execute(sql2,[date,date])
+    result = cursor.fetchall()
+    lost=result[0][0]
+    return success-lost
+ 
 if __name__ == '__main__':
-    game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
-    buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
-    buy_decision.handi_diff = 0.75
-    buy_decision.odd_diff = 0.75
+    current_time = datetime.now()
+    previous_day = current_time - timedelta(days=1)
+    formatted_time = previous_day.strftime("%Y-%m-%d %H:%M:%S")
+    calculate_suiccess_rate(formatted_time)
+    # game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
+    # buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
+    # buy_decision.handi_diff = 0.75
+    # buy_decision.odd_diff = 0.75
 
-    insert_buy_decision(buy_decision)
-    conn.commit()
-    conn.close()
-    pass
+    # insert_buy_decision(buy_decision)
+    # conn.commit()
+    # conn.close()
+    # pass

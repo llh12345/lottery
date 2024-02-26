@@ -386,6 +386,10 @@ def index():
     # 示例数据，实际中可以从数据库或其他来源获取
 
     return "hello world"
+@app.route('/success_rate')
+def success_rate():
+    
+    pass
 def crontab():
     print("start crontab")
     while True:
