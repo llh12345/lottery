@@ -13,8 +13,10 @@ from typing import List
 import store
 from flask import Flask, render_template
 import multiprocessing
+import threading
 
-
+lock = threading.Lock()
+buy_decisions_before = []
 BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 3.0
@@ -256,7 +258,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handicap_odds = max_profit_game_list[3].Handicap_Odds
         win_odd_euro = max_profit_game_list[3].Odds[0] # 主胜赔率
         lost_odd_euro = max_profit_game_list[3].Odds[2] # 主负赔率
-        if game.Odds[0] / BD_TAX < win_odd_euro and game.Odds[2] / BD_TAX > lost_odd_euro:
+        if game.Odds[0] / BD_TAX < win_odd_euro - 0.1 and game.Odds[2] / BD_TAX > lost_odd_euro + 0.1:
             # 主队热度高
             amount = 1000 / float(handicap_odds[1])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
@@ -265,7 +267,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
             store.insert_buy_decision(buy_decision)
             return buy_decision
-        if game.Odds[0]/ BD_TAX >  win_odd_euro and game.Odds[2]/ BD_TAX < lost_odd_euro:
+        if game.Odds[0]/ BD_TAX >  win_odd_euro + 0.1 and game.Odds[2]/ BD_TAX < lost_odd_euro - 0.1:
             amount = 1000 / float(handicap_odds[0])
             print("买", max_profit_game_list[3].matchTime, " ", max_profit_game_list[3].Host, " ",
                     f"{max_profit_game_list[3].Handicap_num} " + result_dict[0], " ",
@@ -370,11 +372,15 @@ import os
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 @app.route('/test')
 def test():
+    global buy_decisions_before 
     # 示例数据，实际中可以从数据库或其他来源获取
     print("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
+    if len(buy_decisions) != 0:
+        with lock:
+            buy_decisions_before = buy_decisions
     print("buy_decision", len(buy_decisions))
-    return render_template('table_template.html', data=buy_decisions)
+    return render_template('table_template.html', data=buy_decisions_before)
 @app.route('/index')
 def index():
     # 示例数据，实际中可以从数据库或其他来源获取
