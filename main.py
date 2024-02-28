@@ -163,7 +163,8 @@ def is_same_game(game1: entity.GameInfo, game2: entity.GameInfo):
     if util.is_same_team(game1.Host, game2.Host) and util.is_same_team(game1.Guest, game2.Guest):
         return True
 
-
+    if util.is_total_same_team(game1.Host, game2.Host) or util.is_total_same_team(game1.Guest, game2.Guest):
+        return True
     # 用单个空格连接单词
     return False
 
@@ -210,6 +211,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
     # 北单-1 相当于 -1.5
     # TODO 重构下面逻辑
     if int(game.Handicap_num) > 0 :
+        if game.Handicap_Odds[1]  / BD_TAX < 2:
+            return None
         # 客队是强队
         handi_cap_num_bd = float(game.Handicap_num) + 0.5
         handi_diff = abs(abs(handi_cap_num_bd) - abs(max_profit_game_list[3].Handicap_num))
@@ -234,6 +237,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
+        if game.Handicap_Odds[0] / BD_TAX < 2:
+            return None
         # if abs(game.Odds[0] - game.Odds[2]) < 0.3:
         #     return None
         # 主队是强队，强队的期望赔率
@@ -278,6 +283,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
         else:
+            if game.Handicap_Odds[1]  / BD_TAX < 2:
+                return None
             # 客队是强队
             handi_diff = 0.5 - handicap_num
             handicap_num = max_profit_game_list[3].Handicap_num
@@ -297,6 +304,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
+        if game.Handicap_Odds[0]  / BD_TAX < 2:
+            return None
         # 主队是强队
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
