@@ -51,6 +51,7 @@ def update_result(game_list_no_result, game_result_list):
                         if host_goal - guest_goal + handi_cap_num == 0.25:
                             result = "输半"
                 elif host_goal - guest_goal + handi_cap_num < 0:
+                    print(1231)
                     if guess == "负":
                         result = "赢"
                         if host_goal - guest_goal + handi_cap_num == -0.25:

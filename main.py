@@ -28,24 +28,7 @@ def get_data_from_bd():
     timestamp = int(current_time.timestamp() * 1000)
     params = {'_':timestamp , 'dt': formatted_time}
     paramsEncoded = urlencode(params)
-    command = f'''
-    curl 'https://bjlot.com/data/200ParlayGetGame_24024.xml?{paramsEncoded}' \
-      -H 'Accept: application/xml, text/xml, */*; q=0.01' \
-      -H 'Accept-Language: zh-CN,zh;q=0.9,ko;q=0.8' \
-      -H 'Cache-Control: no-cache' \
-      -H 'Connection: keep-alive' \
-      -H 'Pragma: no-cache' \
-      -H 'Referer: https://bjlot.com/ssm/dc200_spf.shtml' \
-      -H 'Sec-Fetch-Dest: empty' \
-      -H 'Sec-Fetch-Mode: cors' \
-      -H 'Sec-Fetch-Site: same-origin' \
-      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' \
-      -H 'X-Requested-With: XMLHttpRequest' \
-      -H 'sec-ch-ua: "Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"' \
-      -H 'sec-ch-ua-mobile: ?0' \
-      -H 'sec-ch-ua-platform: "macOS"' --insecure
-    '''
-    # command = f"curl -H 'charset=utf-8' 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
+    command = f"curl -H 'charset=utf-8' 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
     # print(command)
 
     try:
@@ -125,7 +108,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2,3")
+    companys = quote("1,2,3,4")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
