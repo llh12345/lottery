@@ -5,6 +5,8 @@ import subprocess
 import json
 from datetime import datetime, timedelta
 import util
+import logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def get_game_result_by_date(date: str) :
     command = f'curl https://odds.zgzcw.com/odds/oyzs_ajax.action -d "type=bd&date={date}&companys=1" -compressed'
@@ -51,7 +53,6 @@ def update_result(game_list_no_result, game_result_list):
                         if host_goal - guest_goal + handi_cap_num == 0.25:
                             result = "输半"
                 elif host_goal - guest_goal + handi_cap_num < 0:
-                    print(1231)
                     if guess == "负":
                         result = "赢"
                         if host_goal - guest_goal + handi_cap_num == -0.25:
@@ -97,4 +98,4 @@ if __name__ == '__main__':
         if date_before_1day in result_game_by_date:
             game_result_list.extend(result_game_by_date[date_before_1day])
         update_result(no_result_game_list, game_result_list)
-    print("done")
+    logging.info("done")

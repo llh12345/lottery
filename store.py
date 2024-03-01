@@ -1,5 +1,4 @@
 import mysql.connector
-
 import entity
 import util
 # 填写数据库连接信息
@@ -8,6 +7,8 @@ user = "remote"
 password = "YX2021@greendog"
 database = "lottery"
 from datetime import datetime, timedelta
+import logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # 创建连接
 conn = mysql.connector.connect(
@@ -119,16 +120,16 @@ def calculate_suiccess_rate(date):
     return success-lost
  
 if __name__ == '__main__':
-    current_time = datetime.now()
-    previous_day = current_time - timedelta(days=1)
-    formatted_time = previous_day.strftime("%Y-%m-%d %H:%M:%S")
-    calculate_suiccess_rate(formatted_time)
-    # game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
-    # buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
-    # buy_decision.handi_diff = 0.75
-    # buy_decision.odd_diff = 0.75
+    # current_time = datetime.now()
+    # previous_day = current_time - timedelta(days=1)
+    # formatted_time = previous_day.strftime("%Y-%m-%d %H:%M:%S")
+    # calculate_suiccess_rate(formatted_time)
+    game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
+    buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
+    buy_decision.handi_diff = 0.75
+    buy_decision.odd_diff = 0.75
 
-    # insert_buy_decision(buy_decision)
-    # conn.commit()
+    insert_buy_decision(buy_decision)
+    conn.commit()
     # conn.close()
     # pass

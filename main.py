@@ -29,7 +29,7 @@ def get_data_from_bd():
     params = {'_':timestamp , 'dt': formatted_time}
     paramsEncoded = urlencode(params)
     command = f"curl -H 'charset=utf-8' 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
-    # print(command)
+    print(command)
 
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
@@ -365,6 +365,13 @@ app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 't
 @app.route('/test')
 def test():
     global buy_decisions_before 
+    print(len(buy_decisions_before))
+    if len(buy_decisions_before) == 0:
+        buy_decisions, handi_table = start_to_get_solution()
+        with lock:
+            buy_decisions_before = buy_decisions
+    return render_template('table_template.html', data=buy_decisions_before)
+
     # 示例数据，实际中可以从数据库或其他来源获取
     print("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
@@ -384,11 +391,15 @@ def success_rate():
     pass
 def crontab():
     print("start crontab")
+    global buy_decisions_before 
+
     while True:
         print(datetime.now())
         buy_decisions, handi_tables = start_to_get_solution()
+        with lock:
+            buy_decisions_before = buy_decisions
         result_str = ''
-        for buy_decision in buy_decisions:
+        for buy_decision in buy_decisions_before:
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
         print("start to send email")
         time.sleep(60 * 2)
