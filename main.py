@@ -26,7 +26,7 @@ BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 3.0
 HANDI_DIFF_FACTOR = 2.0
-EXPECT_ODD_DIFF = 0.39
+EXPECT_ODD_DIFF = 0.35
 EURO_DIFF = 0.2
 def get_data_from_bd():
     current_time = datetime.now()
@@ -113,7 +113,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2")
+    companys = quote("1,2,3,4,5")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
@@ -269,6 +269,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
             expect_diff = game.Odds[0] / BD_TAX  -  expect_odd
             if expect_diff + EXPECT_ODD_DIFF < 0:
+                if handicap_num == 0 and game.Odds[0] / BD_TAX > max_profit_game_list[3].Odds[0]:
+                    return None
                 odd_diff = game.Odds[0] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[1])
@@ -288,6 +290,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             expect_odd = (handicap_odds[1] + 1) + (handi_diff) * 2
             expect_diff = game.Odds[2] / BD_TAX - expect_odd
             if  expect_diff + EXPECT_ODD_DIFF < 0:
+                if handicap_num == 0 and game.Odds[1] / BD_TAX > max_profit_game_list[3].Odds[1]:
+                    return None
                 odd_diff = game.Odds[2] / BD_TAX - expect_odd
                 handle_print_table(handi_table, game, max_profit_game_list)
                 amount = 1000 / float(handicap_odds[0])
@@ -362,12 +366,12 @@ def test():
             buy_decisions_before = sorted(buy_decisions, key=lambda x:x.game.matchTime)
 
     # 示例数据，实际中可以从数据库或其他来源获取
-    # logging.info("start get solution")
-    # buy_decisions, handi_table = start_to_get_solution()
-    # if len(buy_decisions) != 0:
-    #     with lock:
-    #         buy_decisions_before = buy_decisions
-    # logging.info("buy_decision", len(buy_decisions))
+    logging.info("start get solution")
+    buy_decisions, handi_table = start_to_get_solution()
+    if len(buy_decisions) != 0:
+        with lock:
+            buy_decisions_before = buy_decisions
+    logging.info("buy_decision", len(buy_decisions))
     return render_template('table_template.html', data=buy_decisions_before)
 @app.route('/index')
 def index():
@@ -397,7 +401,7 @@ def crontab():
         for buy_decision in buy_decisions_before:
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
         logging.info("start to send email")
-        time.sleep(60 * 2)
+        time.sleep(60 * 1)
 if __name__ == '__main__':
     process1 = multiprocessing.Process(target=crontab)
     process1.start()
