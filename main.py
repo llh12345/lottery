@@ -377,6 +377,12 @@ def index():
 def success_rate():
     
     pass
+
+@app.route('/last_guess')
+def last_guess():
+    buy_decision_list = store.last_guess_game(10)
+    return render_template('table_template.html', data=buy_decision_list)
+    pass
 def crontab():
     logging.info("start crontab")
     global buy_decisions_before 

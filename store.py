@@ -119,11 +119,39 @@ def calculate_suiccess_rate(date):
     lost=result[0][0]
     return success-lost
  
+def last_guess_game(num):
+    sql = '''
+    select match_time, host, guest, website_type, handicap_num, guess, odd
+    from buy
+    ORDER BY match_time desc limit %s
+    ''' 
+    cursor = conn.cursor()
+    cursor.execute(sql,[num])
+    result = cursor.fetchall()
+    buy_decision_list = []
+    for row in result:
+        match_time = row[0]
+        host = row[1]
+        guest = row[2]
+        website_type = row[3]
+        handicap_num = row[4]
+        guess = row[5]
+        odd = row[6]
+        game_info = entity.GameInfo(match_time, host, guest, [], [], website_type)
+        game_info.handicap_num = handicap_num
+        game_info.guess = guess
+        buy_decision = entity.BuyDecision(game_info,0, odd, guess)
+        buy_decision_list.append(buy_decision)
+    return buy_decision_list
+
 if __name__ == '__main__':
     # current_time = datetime.now()
     # previous_day = current_time - timedelta(days=1)
     # formatted_time = previous_day.strftime("%Y-%m-%d %H:%M:%S")
     # calculate_suiccess_rate(formatted_time)
+    buy_decision_list = last_guess_game(5)
+    for buy_decision in buy_decision_list:
+        print(buy_decision.game.Host, buy_decision.game.Guest, buy_decision.guess)
     game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
     buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
     buy_decision.handi_diff = 0.75
