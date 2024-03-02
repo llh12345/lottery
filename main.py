@@ -26,7 +26,8 @@ BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 3.0
 HANDI_DIFF_FACTOR = 2.0
-EXPECT_ODD_DIFF = 0.2
+EXPECT_ODD_DIFF = 0.39
+EURO_DIFF = 0.2
 def get_data_from_bd():
     current_time = datetime.now()
     formatted_time = current_time.strftime('%a %b %d %Y %H:%M:%S GMT %z')
@@ -112,7 +113,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2,3,4")
+    companys = quote("1,2")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
@@ -248,14 +249,14 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handicap_odds = max_profit_game_list[3].Handicap_Odds
         win_odd_euro = max_profit_game_list[3].Odds[0] # 主胜赔率
         lost_odd_euro = max_profit_game_list[3].Odds[2] # 主负赔率
-        if game.Odds[0] / BD_TAX < win_odd_euro - 0.1 and game.Odds[2] / BD_TAX > lost_odd_euro + 0.1:
+        if game.Odds[0] / BD_TAX < win_odd_euro - EURO_DIFF and game.Odds[2] / BD_TAX > lost_odd_euro + EURO_DIFF:
             # 主队热度高
             amount = 1000 / float(handicap_odds[1])
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[2]} {handicap_odds[1]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
             store.insert_buy_decision(buy_decision)
             return buy_decision
-        if game.Odds[0]/ BD_TAX >  win_odd_euro + 0.1 and game.Odds[2]/ BD_TAX < lost_odd_euro - 0.1:
+        if game.Odds[0]/ BD_TAX >  win_odd_euro + EURO_DIFF and game.Odds[2]/ BD_TAX < lost_odd_euro - EURO_DIFF:
             amount = 1000 / float(handicap_odds[0])
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[0]} {handicap_odds[0]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
@@ -361,11 +362,11 @@ def test():
             buy_decisions_before = sorted(buy_decisions, key=lambda x:x.game.matchTime)
 
     # 示例数据，实际中可以从数据库或其他来源获取
-    logging.info("start get solution")
-    buy_decisions, handi_table = start_to_get_solution()
-    if len(buy_decisions) != 0:
-        with lock:
-            buy_decisions_before = buy_decisions
+    # logging.info("start get solution")
+    # buy_decisions, handi_table = start_to_get_solution()
+    # if len(buy_decisions) != 0:
+    #     with lock:
+    #         buy_decisions_before = buy_decisions
     # logging.info("buy_decision", len(buy_decisions))
     return render_template('table_template.html', data=buy_decisions_before)
 @app.route('/index')

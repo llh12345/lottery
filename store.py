@@ -138,7 +138,7 @@ def last_guess_game(num):
         guess = row[5]
         odd = row[6]
         game_info = entity.GameInfo(match_time, host, guest, [], [], website_type)
-        game_info.handicap_num = handicap_num
+        game_info.Handicap_num = handicap_num
         game_info.guess = guess
         buy_decision = entity.BuyDecision(game_info,0, odd, guess)
         buy_decision_list.append(buy_decision)
@@ -151,13 +151,13 @@ if __name__ == '__main__':
     # calculate_suiccess_rate(formatted_time)
     buy_decision_list = last_guess_game(5)
     for buy_decision in buy_decision_list:
-        print(buy_decision.game.Host, buy_decision.game.Guest, buy_decision.guess)
-    game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
-    buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
-    buy_decision.handi_diff = 0.75
-    buy_decision.odd_diff = 0.75
+        print(buy_decision.game.Host, buy_decision.game.Guest, buy_decision.game.Handicap_num)
+    # game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
+    # buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
+    # buy_decision.handi_diff = 0.75
+    # buy_decision.odd_diff = 0.75
 
-    insert_buy_decision(buy_decision)
-    conn.commit()
+    # insert_buy_decision(buy_decision)
+    # conn.commit()
     # conn.close()
     # pass
