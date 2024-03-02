@@ -240,8 +240,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
-        if game.Handicap_Odds[0] / BD_TAX < 2:
-            return None
+
         # if abs(game.Odds[0] - game.Odds[2]) < 0.3:
         #     return None
         # 主队是强队，强队的期望赔率
@@ -262,6 +261,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
             store.insert_buy_decision(buy_decision)
             return buy_decision
+        # if game.Handicap_Odds[0] / BD_TAX < 2:
+        #     return None
         if handicap_num == 0 and abs(game.Odds[0] - game.Odds[2] < 0.2):
             return None
         if max_profit_game_list[3].Handicap_num < 0 or (max_profit_game_list[3].Handicap_num == 0 and max_profit_game_list[3].Handicap_Odds[0] < max_profit_game_list[3].Handicap_Odds[1]):
@@ -368,11 +369,11 @@ def test():
     # 示例数据，实际中可以从数据库或其他来源获取
     logging.info("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
-    if len(buy_decisions) != 0:
-        with lock:
-            buy_decisions_before = buy_decisions
-    logging.info("buy_decision", len(buy_decisions))
-    return render_template('table_template.html', data=buy_decisions_before)
+    # if len(buy_decisions) != 0:
+    #     with lock:
+    #         buy_decisions_before = buy_decisions
+    # # logging.info("buy_decision", len(buy_decisions))
+    return render_template('table_template.html', data=buy_decisions)
 @app.route('/index')
 def index():
     # 示例数据，实际中可以从数据库或其他来源获取
