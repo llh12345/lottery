@@ -36,16 +36,27 @@ def get_data_from_bd():
     paramsEncoded = urlencode(params)
     command = f"curl -H 'charset=utf-8' 'https://bjlot.com/data/200ParlayGetGame.xml?{paramsEncoded}' --insecure"
     logging.info(command)
-
+    file_path = 'test.xml'
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.stdout == "":
             logging.info(f"error {result.stderr}")
             sys.exit(1)
         ordered_dict = xmltodict.parse(result.stdout)
+        with open(file_path, 'w') as file:
+            file.write(result.stdout)
+        # command = f'echo "{result.stdout}" > test.xml'
+        # result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        # logging.info(f"command: {command}, ret: {result.stderr} {result.stdout}")
     except Exception as e:
         logging.info(f"encouter exception {e}")
-        return [],[]
+        if not os.path.exists(file_path):
+            return [],[]
+        with open(file_path, 'r') as file:
+            # 读取整个文件内容
+            content = file.read()
+            ordered_dict = xmltodict.parse(content)
     # 将 OrderedDict 转换为 JSON 字符串
     json_data = json.dumps(ordered_dict, indent=2)
     data_dict = json.loads(json_data)
@@ -95,25 +106,52 @@ def get_data_from_bd():
 
 
 def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
-    company_odds_list = []
-    max_win_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_same_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_lost_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
-    max_handi_odds_game_info = entity.GameInfo('', '', '', [-1, -1, -1], [-1, -1], '')
+    if "哈德斯" in game_info_list[0].Host:
+        print(1)
+    handi_cap_cnt_dict = {}
     for game_info in game_info_list:
-        if max_win_odds_game_info.Odds[0] < game_info.Odds[0]:
-            max_win_odds_game_info = game_info
-        if max_same_odds_game_info.Odds[1] < game_info.Odds[1]:
-            max_same_odds_game_info = game_info
-        if max_lost_odds_game_info.Odds[2] < game_info.Odds[2]:
-            max_lost_odds_game_info = game_info
-        if max_handi_odds_game_info.Handicap_Odds[0] < game_info.Handicap_Odds[0]:
-            max_handi_odds_game_info = game_info
-    return [max_win_odds_game_info, max_same_odds_game_info, max_lost_odds_game_info, max_handi_odds_game_info]
+        if game_info.Handicap_Odds[0] < 0 or game_info.Odds[0] < 0:
+            continue
+        if game_info.Handicap_num not in handi_cap_cnt_dict:
+            handi_cap_cnt_dict[game_info.Handicap_num] = 0
+        handi_cap_cnt_dict[game_info.Handicap_num] += 1
+    max_cnt = -1
+    common_handi_cap_num = -100
+    for handi_cap_num, cnt in handi_cap_cnt_dict.items():
+        if max_cnt < cnt:
+            max_cnt = cnt
+            common_handi_cap_num  = handi_cap_num
+    common_game_list = []
+    for game_info in game_info_list:
+        if game_info.Handicap_num == common_handi_cap_num:
+            common_game_list.append(game_info)
+    avg_game_info = entity.GameInfo(common_game_list[0].matchTime, common_game_list[0].Host, common_game_list[0].Guest,
+                                    [-1, -1, -1], [-1, -1], '')
+    avg_game_info.Handicap_num = common_handi_cap_num
+    Odds = [0,0,0]
+    HandiCap_Odds = [0,0]
+    cnt = 0
+    for game_info in common_game_list:
+        if game_info.Odds[0] < 0 or game_info.Handicap_Odds[0] < 0:
+            continue
+        for i in range(len(Odds)):
+            Odds[i] += game_info.Odds[i]
+        for i in range(len(HandiCap_Odds)):
+            HandiCap_Odds[i] += game_info.Handicap_Odds[i]
+        cnt += 1
+    if cnt == 0:
+        return [game_info_list[0], game_info_list[0], game_info_list[0], game_info_list[0]]
+    for i in range(len(Odds)):
+        Odds[i] = round(Odds[i] / cnt,2)
+    for i in range(len(HandiCap_Odds)):
+        HandiCap_Odds[i] = round(HandiCap_Odds[i] / cnt,2 )
+    avg_game_info.Handicap_Odds = HandiCap_Odds
+    avg_game_info.Odds = Odds
+    return [avg_game_info, avg_game_info, avg_game_info, avg_game_info]
 #date格式 2024-02-07
 def get_data_from_website(date: str):
     from urllib.parse import quote
-    companys = quote("1,2,3,4,5")
+    companys = quote("1,2,3,4,5,6,7,8")
     command = f"curl 'https://odds.zgzcw.com/odds/oyzs_ajax.action' --data-raw 'type=bd&date={date}&companys=${companys}'"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     out = result.stdout
@@ -215,7 +253,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
     # 北单-1 相当于 -1.5
     # TODO 重构下面逻辑
     if int(game.Handicap_num) > 0 :
-        if game.Handicap_Odds[1]  / BD_TAX < 2:
+        if game.Odds[0]  / BD_TAX < 2.3:
             return None
         # 客队是强队
         handi_cap_num_bd = float(game.Handicap_num) + 0.5
@@ -304,7 +342,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
-        if game.Handicap_Odds[0]  / BD_TAX < 2:
+        if game.Odds[2]  / BD_TAX < 2.3:
             return None
         # 主队是强队
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
@@ -359,20 +397,19 @@ import os
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 @app.route('/test')
 def test():
-    global buy_decisions_before 
-    logging.info(f"buy_decision_before length: {len(buy_decisions_before)}")
-    if len(buy_decisions_before) == 0:
-        buy_decisions, handi_table = start_to_get_solution()
-        with lock:
-            buy_decisions_before = sorted(buy_decisions, key=lambda x:x.game.matchTime)
+    # global buy_decisions_before 
+    # logging.info(f"buy_decision_before length: {len(buy_decisions_before)}")
+    # if len(buy_decisions_before) == 0:
+    #     buy_decisions, handi_table = start_to_get_solution()
+    #     with lock:
+    #         buy_decisions_before = sorted(buy_decisions, key=lambda x:x.game.matchTime)
 
     # 示例数据，实际中可以从数据库或其他来源获取
-    logging.info("start get solution")
+    # logging.info("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
     # if len(buy_decisions) != 0:
     #     with lock:
-    #         buy_decisions_before = buy_decisions
-    # # logging.info("buy_decision", len(buy_decisions))
+    #         buy_decisions = buy_decisions_before
     return render_template('table_template.html', data=buy_decisions)
 @app.route('/index')
 def index():
@@ -386,7 +423,7 @@ def success_rate():
 
 @app.route('/last_guess')
 def last_guess():
-    buy_decision_list = store.last_guess_game(10)
+    buy_decision_list = store.last_guess_game(20)
     return render_template('table_template.html', data=buy_decision_list)
     pass
 def crontab():
@@ -397,7 +434,8 @@ def crontab():
         logging.info(datetime.now())
         buy_decisions, handi_tables = start_to_get_solution()
         with lock:
-            buy_decisions_before =  sorted(buy_decisions, key=lambda x:x.game.matchTime)
+            global buy_decisions_before 
+            buy_decisions_before = buy_decisions
         result_str = ''
         for buy_decision in buy_decisions_before:
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
