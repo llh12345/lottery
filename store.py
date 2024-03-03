@@ -41,8 +41,8 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
             expect_diff = buy_decision.expect_diff
     except Exception as e:
         print(e)
-    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type, handi_diff, odd_diff, expect_diff) " + \
-                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+    sql = f"INSERT INTO buy" + f"(match_time, host, guest, website_type, handicap_num, amount, created_at,odd,guess,game_type, handi_diff, odd_diff, expect_diff, league, hot_value, strategy) " + \
+                   f"VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
     data_to_insert = (buy_decision.game.matchTime,
                       buy_decision.game.Host,
                       buy_decision.game.Guest,
@@ -55,15 +55,17 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
                       "让球",
                       handi_diff,
                       odd_diff,
-                      expect_diff
-                      )
+                      expect_diff,
+                      buy_decision.game.League,
+                      buy_decision.Hot_Value,
+                      buy_decision.Strategy)
     print("%s %s" % (sql, data_to_insert))
     cursor.execute(sql, data_to_insert)
     conn.commit()
 
 def update_game_result(game_info:entity.GameInfo, result: str):
     print(game_info.matchTime, game_info.Host, game_info.Guest, game_info.host_goal, game_info.guest_goal, result)
-    sql = "UPDATE buy SET result = %s, host_goal = %s, guest_goal = %s WHERE DATE(match_time) = %s and host = %s and guest = %s"
+    sql = "UPDATE buy SET result = %s, host_goal = %s, guest_goal = %s WHERE DATE(match_time) = %s and host = %s and guest = %s and match_time <= SUBTIME(CURRENT_TIMESTAMP, '3:0:0')"
     cursor = conn.cursor()
     cursor.execute(sql, (result, game_info.host_goal, game_info.guest_goal,game_info.matchTime, game_info.Host, game_info.Guest))
     conn.commit()
@@ -121,7 +123,7 @@ def calculate_suiccess_rate(date):
  
 def last_guess_game(num):
     sql = '''
-    select match_time, host, guest, website_type, handicap_num, guess, odd
+    select match_time, host, guest, website_type, handicap_num, guess, odd, league, result, hot_value, strategy
     from buy
     ORDER BY match_time desc limit %s
     ''' 
@@ -137,10 +139,20 @@ def last_guess_game(num):
         handicap_num = row[4]
         guess = row[5]
         odd = row[6]
+        league = row[7]
+        result = row[8]
+        hot_value = row[9]
+        strategy = row[10]
         game_info = entity.GameInfo(match_time, host, guest, [], [], website_type)
         game_info.Handicap_num = handicap_num
+        game_info.League = league
         game_info.guess = guess
         buy_decision = entity.BuyDecision(game_info,0, odd, guess)
+        if result == None or result == '':
+            result = '未知'
+        buy_decision.Result = result
+        buy_decision.Hot_Value = hot_value
+        buy_decision.Strategy = strategy
         buy_decision_list.append(buy_decision)
     return buy_decision_list
 

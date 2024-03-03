@@ -34,7 +34,6 @@ def get_game_result_by_date(date: str) :
 def update_result(game_list_no_result, game_result_list):
     for game_no_result in game_list_no_result:
         for game_result in game_result_list:
-            # if game_result.Host == ""
             if game_no_result.matchTime == game_result.matchTime and util.is_same_team(game_no_result.Host, game_result.Host) and util.is_same_team(game_no_result.Guest, game_result.Guest):
                 host_goal = game_result.host_goal
                 guest_goal = game_result.guest_goal
@@ -65,7 +64,8 @@ def update_result(game_list_no_result, game_result_list):
                     result = "平"
 
                 update_game_result(game_no_result, result)
-if __name__ == '__main__':
+                
+def update():
     current_time = datetime.now()
     formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     no_result_game_list = query_no_result_game(formatted_time)
@@ -99,3 +99,6 @@ if __name__ == '__main__':
             game_result_list.extend(result_game_by_date[date_before_1day])
         update_result(no_result_game_list, game_result_list)
     logging.info("done")
+
+if __name__ == '__main__':
+    update()

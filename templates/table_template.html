@@ -26,6 +26,10 @@
         <th>让球</th>
         <th>推荐</th>
         <th>赔率</th>
+        <th>联赛名字</th>
+        <th>赛果</th>
+        <th>热度</th>
+        <th>策略</th>
     </tr>
     {% for row in data %}
         <tr>
@@ -35,7 +39,10 @@
             <td> {{row.game.Handicap_num}}</td>
             <td> 主({{row.guess}})</td>
             <td>{{ row.odd }}</td>
-
+            <td>{{ row.game.League }}</td>
+            <td>{{ row.Result }}</td>
+            <td>{{ row.Hot_Value if row.Hot_Value else '无'}}</td>
+            <td>{{ row.Strategy if row.Strategy else '无' }} </td>
         </tr>
     {% endfor %}
 </table>

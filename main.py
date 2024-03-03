@@ -72,6 +72,9 @@ def get_data_from_bd():
         game_date = date['#text']
         for item in items:
             try:
+                # if len(items) > 100:
+                #     if '乙' in item['leagueName'] or '英甲' in item['leagueName'] or 'J2' in item['leagueName']:
+                #         continue
                 host = item['host']
                 guest = item['guest']
                 sp1 = round(float(item['spitem']['sp1']) * BD_TAX , 4)
@@ -106,8 +109,6 @@ def get_data_from_bd():
 
 
 def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
-    if "哈德斯" in game_info_list[0].Host:
-        print(1)
     handi_cap_cnt_dict = {}
     for game_info in game_info_list:
         if game_info.Handicap_Odds[0] < 0 or game_info.Odds[0] < 0:
@@ -147,6 +148,7 @@ def find_max_odd_from_website(game_info_list: List[entity.GameInfo]):
         HandiCap_Odds[i] = round(HandiCap_Odds[i] / cnt,2 )
     avg_game_info.Handicap_Odds = HandiCap_Odds
     avg_game_info.Odds = Odds
+    avg_game_info.League =  game_info_list[0].League
     return [avg_game_info, avg_game_info, avg_game_info, avg_game_info]
 #date格式 2024-02-07
 def get_data_from_website(date: str):
@@ -161,6 +163,8 @@ def get_data_from_website(date: str):
         host = data["HOST_NAME"]
         guest = data["GUEST_NAME"]
         date = data["MATCH_TIME"]
+        league = data['LEAGUE_NAME_SIMPLY']
+
         # 去除date最后一个字符
         date = date[:len(date)-2]
         if len(data["listOdds"]) == 0:
@@ -175,6 +179,7 @@ def get_data_from_website(date: str):
             list_odds.append(odd["SAME"])
             list_odds.append(odd["LOST"])
             game_info = entity.GameInfo(date, host, guest, list_odds, [-1, -1], odd["COMPANY_NAME"])
+            game_info.League = league
             if "HANDICAP" in odd:
                 handi_cap_num = float(odd["HANDICAP"])
                 handi_host_odd = odd["HOST"]
@@ -275,10 +280,13 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision.handi_diff = handi_diff
             buy_decision.odd_diff = abs(odd_diff)
             buy_decision.expect_diff = expect_diff
+            # 热度值
+            logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
+            buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
+            buy_decision.Strategy = '让球'
             store.insert_buy_decision(buy_decision)
             return buy_decision
     elif int(game.Handicap_num) == 0:
-
         # if abs(game.Odds[0] - game.Odds[2]) < 0.3:
         #     return None
         # 主队是强队，强队的期望赔率
@@ -291,12 +299,18 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             amount = 1000 / float(handicap_odds[1])
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[2]} {handicap_odds[1]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
+            expect_diff = (abs(win_odd_euro - game.Odds[0] / BD_TAX) + abs(game.Odds[2] / BD_TAX - lost_odd_euro)) / 2
+            buy_decision.Hot_Value = round(expect_diff / (game.Odds[0] * game.Odds[2]),2)
+            buy_decision.Strategy = '欧指'
             store.insert_buy_decision(buy_decision)
             return buy_decision
         if game.Odds[0]/ BD_TAX >  win_odd_euro + EURO_DIFF and game.Odds[2]/ BD_TAX < lost_odd_euro - EURO_DIFF:
             amount = 1000 / float(handicap_odds[0])
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[0]} {handicap_odds[0]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
+            expect_diff = (abs(win_odd_euro - game.Odds[0] / BD_TAX) + abs(game.Odds[2] / BD_TAX - lost_odd_euro)) / 2
+            buy_decision.Hot_Value = round(expect_diff / (game.Odds[0] * game.Odds[2]),2)
+            buy_decision.Strategy = '欧指'
             store.insert_buy_decision(buy_decision)
             return buy_decision
         # if game.Handicap_Odds[0] / BD_TAX < 2:
@@ -318,9 +332,14 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
                 buy_decision.expect_diff = expect_diff
+                buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
+                buy_decision.Strategy = '让球'
+                logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
+
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
         else:
+
             if game.Handicap_Odds[1]  / BD_TAX < 2:
                 return None
             # 客队是强队
@@ -339,6 +358,10 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 buy_decision.handi_diff = handi_diff
                 buy_decision.odd_diff = abs(odd_diff)
                 buy_decision.expect_diff = expect_diff
+                buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
+                logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
+                buy_decision.Strategy = '让球'
+
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
@@ -365,6 +388,9 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision.handi_diff = handi_diff
             buy_decision.odd_diff = abs(odd_diff)
             buy_decision.expect_diff = expect_diff
+            buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
+            buy_decision.Strategy = '让球'
+
             store.insert_buy_decision(buy_decision)
             return buy_decision
 
@@ -441,9 +467,17 @@ def crontab():
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
         logging.info("start to send email")
         time.sleep(60 * 1)
+import result   
+def crontab_update_result():
+    logging.info("start crontab update result")
+    while True:
+        result.update()
+        time.sleep(60 * 60)   
 if __name__ == '__main__':
     process1 = multiprocessing.Process(target=crontab)
     process1.start()
+    process2 = multiprocessing.Process(target=crontab_update_result)
+    process2.start()
     app.run(host='0.0.0.0', port=9191)
     
 
