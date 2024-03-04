@@ -65,7 +65,7 @@ def insert_buy_decision(buy_decision:entity.BuyDecision):
 
 def update_game_result(game_info:entity.GameInfo, result: str):
     print(game_info.matchTime, game_info.Host, game_info.Guest, game_info.host_goal, game_info.guest_goal, result)
-    sql = "UPDATE buy SET result = %s, host_goal = %s, guest_goal = %s WHERE DATE(match_time) = %s and host = %s and guest = %s and match_time <= SUBTIME(CURRENT_TIMESTAMP, '3:0:0')"
+    sql = "UPDATE buy SET result = %s, host_goal = %s, guest_goal = %s WHERE DATE(match_time) = %s and host = %s and guest = %s and match_time <= SUBTIME(CURRENT_TIMESTAMP, '2:20:0')"
     cursor = conn.cursor()
     cursor.execute(sql, (result, game_info.host_goal, game_info.guest_goal,game_info.matchTime, game_info.Host, game_info.Guest))
     conn.commit()

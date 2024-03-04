@@ -300,7 +300,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[2]} {handicap_odds[1]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[1], result_dict[2])
             expect_diff = (abs(win_odd_euro - game.Odds[0] / BD_TAX) + abs(game.Odds[2] / BD_TAX - lost_odd_euro)) / 2
-            buy_decision.Hot_Value = round(expect_diff / (game.Odds[0] * game.Odds[2]),2)
+            buy_decision.Hot_Value = round(expect_diff * 2.5 / (game.Odds[0] * game.Odds[2]),2) 
             buy_decision.Strategy = '欧指'
             store.insert_buy_decision(buy_decision)
             return buy_decision
@@ -309,7 +309,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             logging.info(f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num}  {result_dict[0]} {handicap_odds[0]} 总额 {amount}")
             buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, handicap_odds[0], result_dict[0])
             expect_diff = (abs(win_odd_euro - game.Odds[0] / BD_TAX) + abs(game.Odds[2] / BD_TAX - lost_odd_euro)) / 2
-            buy_decision.Hot_Value = round(expect_diff / (game.Odds[0] * game.Odds[2]),2)
+            buy_decision.Hot_Value = round(expect_diff * 2.5/ (game.Odds[0] * game.Odds[2]) ,2)
             buy_decision.Strategy = '欧指'
             store.insert_buy_decision(buy_decision)
             return buy_decision
@@ -472,7 +472,7 @@ def crontab_update_result():
     logging.info("start crontab update result")
     while True:
         result.update()
-        time.sleep(60 * 60)   
+        time.sleep(60 * 10)   
 if __name__ == '__main__':
     process1 = multiprocessing.Process(target=crontab)
     process1.start()
