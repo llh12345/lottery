@@ -10,6 +10,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 import logging
+from flask import Flask, render_template, request
 
 # 配置日志记录器
 logging.basicConfig(level=logging.DEBUG,  # 设置日志级别为DEBUG，可以根据需要调整级别
@@ -26,8 +27,8 @@ BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 3.0
 HANDI_DIFF_FACTOR = 2.0
-EXPECT_ODD_DIFF = 0.35
-EURO_DIFF = 0.2
+EXPECT_ODD_DIFF = 0.1
+EURO_DIFF = 0.1
 def get_data_from_bd():
     current_time = datetime.now()
     formatted_time = current_time.strftime('%a %b %d %Y %H:%M:%S GMT %z')
@@ -269,7 +270,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         if max_profit_game_list[3].Handicap_num < 0:
             return None
         handi_diff = handi_cap_num_bd - float(max_profit_game_list[3].Handicap_num)
-        expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[1] + 1
+        expect_odd = handi_diff * 1.4 + max_profit_game_list[3].Handicap_Odds[1] + 1
         expect_diff = float(game.Odds[2]) / BD_TAX - expect_odd
         if expect_diff + EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[2]) / BD_TAX - expect_odd
@@ -281,7 +282,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             buy_decision.odd_diff = abs(odd_diff)
             buy_decision.expect_diff = expect_diff
             # 热度值
-            logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
+            # logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
             buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
             buy_decision.Strategy = '让球'
             store.insert_buy_decision(buy_decision)
@@ -319,7 +320,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             return None
         if max_profit_game_list[3].Handicap_num < 0 or (max_profit_game_list[3].Handicap_num == 0 and max_profit_game_list[3].Handicap_Odds[0] < max_profit_game_list[3].Handicap_Odds[1]):
             handi_diff = 0.5 + handicap_num
-            expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 2
+            expect_odd = (handicap_odds[0] + 1) + (handi_diff) * 1.4
             expect_diff = game.Odds[0] / BD_TAX  -  expect_odd
             if expect_diff + EXPECT_ODD_DIFF < 0:
                 if handicap_num == 0 and game.Odds[0] / BD_TAX > max_profit_game_list[3].Odds[0]:
@@ -345,7 +346,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
             # 客队是强队
             handi_diff = 0.5 - handicap_num
             handicap_num = max_profit_game_list[3].Handicap_num
-            expect_odd = (handicap_odds[1] + 1) + (handi_diff) * 2
+            expect_odd = (handicap_odds[1] + 1) + (handi_diff) * 1.4
             expect_diff = game.Odds[2] / BD_TAX - expect_odd
             if  expect_diff + EXPECT_ODD_DIFF < 0:
                 if handicap_num == 0 and game.Odds[1] / BD_TAX > max_profit_game_list[3].Odds[1]:
@@ -377,7 +378,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         #     logging.info(game.Host, game.Guest, f"handi_diff is {handi_diff}")
         #     return
         handi_diff = float(max_profit_game_list[3].Handicap_num) - handi_cap_num_bd
-        expect_odd = handi_diff * 2 + max_profit_game_list[3].Handicap_Odds[0] + 1
+        expect_odd = handi_diff * 1.4 + max_profit_game_list[3].Handicap_Odds[0] + 1
         expect_diff = float(game.Odds[0]) / BD_TAX - expect_odd
         if expect_diff +  EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
@@ -423,29 +424,21 @@ import os
 app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
 @app.route('/test')
 def test():
-    # global buy_decisions_before 
-    # logging.info(f"buy_decision_before length: {len(buy_decisions_before)}")
-    # if len(buy_decisions_before) == 0:
-    #     buy_decisions, handi_table = start_to_get_solution()
-    #     with lock:
-    #         buy_decisions_before = sorted(buy_decisions, key=lambda x:x.game.matchTime)
-
-    # 示例数据，实际中可以从数据库或其他来源获取
-    # logging.info("start get solution")
     buy_decisions, handi_table = start_to_get_solution()
-    # if len(buy_decisions) != 0:
-    #     with lock:
-    #         buy_decisions = buy_decisions_before
     return render_template('table_template.html', data=buy_decisions)
 @app.route('/index')
 def index():
     # 示例数据，实际中可以从数据库或其他来源获取
 
     return "hello world"
+
 @app.route('/success_rate')
 def success_rate():
+    start_date = request.form.get('start_date')
+    end_date = request.form.get('end_date')
     
-    pass
+    return render_template('success_rate.html',)
+ 
 
 @app.route('/last_guess')
 def last_guess():
