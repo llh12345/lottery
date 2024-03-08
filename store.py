@@ -19,7 +19,7 @@ conn = mysql.connector.connect(
 )
 
 def insert_buy_decision(buy_decision:entity.BuyDecision):
-    if not util.is_after(buy_decision.game, 15):
+    if not util.is_after(buy_decision.game, 5):
         return
     cursor = conn.cursor()
     from datetime import datetime
@@ -92,17 +92,17 @@ def query_no_result_game(date_before) -> list[entity.GameInfo]:
         game_info_list.append(game_info)
     return game_info_list
 
-def calculate_suiccess_rate(date):
+def calculate_suiccess_rate(start_date, end_date):
     sql1 = '''
     select sum(odd) as r from (
     select sum(odd) as odd FROM lottery.buy 
-    where match_time > %s and result like '赢'
+    where match_time >= %s and match_time <= %s and result like '赢'
     union
     select sum(odd/2) as odd from lottery.buy
-    where match_time > %s and result like '赢半') as f
+    where match_time >= %s and match_time <= %s and result like '赢半') as f
     '''
     cursor = conn.cursor()
-    cursor.execute(sql1,[date, date])
+    cursor.execute(sql1,[start_date, end_date, start_date, end_date])
     result = cursor.fetchall()
     success=result[0][0]
 
@@ -110,17 +110,41 @@ def calculate_suiccess_rate(date):
     sql2 = '''
     select sum(odd) as r from (
     select sum(1) as odd FROM lottery.buy 
-    where match_time > %s and result like '输'
+    where match_time > %s and match_time <= %s and result like '输'
     union
     select sum(0.5) as odd from lottery.buy
-    where match_time > %s and result like '输半') as f
+    where match_time > %s and match_time <= %s and result like '输半') as f
     '''
     cursor = conn.cursor()
-    cursor.execute(sql2,[date,date])
+    cursor.execute(sql2,[start_date, end_date, start_date, end_date])
     result = cursor.fetchall()
     lost=result[0][0]
     return success-lost
- 
+
+def select_last_7days_game(start_date, end_date):
+    sql = '''
+    select res1 + res2 as res, %s as start_date, %s as end_date from(
+    select sum(odd) as res1 from (
+    select sum(odd) as odd FROM lottery.buy 
+    where match_time > %s and match_time < %s and result like '赢'
+    union
+    select sum(odd/2) as odd from lottery.buy
+    where match_time > %s and match_time < %s and result like '赢半') as f) as f1,
+
+    (select -sum(odd) as res2 from (
+    select sum(1) as odd FROM lottery.buy 
+    where match_time > %s and match_time < %s and result like '输'
+    union
+    select sum(0.5) as odd from lottery.buy
+    where match_time > %s and match_time < %s and result like '输半') as f) as f2;
+    '''
+    cursor = conn.cursor()
+    cursor.execute(sql,[start_date, end_date, start_date, end_date, start_date, end_date, start_date, end_date,start_date, end_date])
+    result = cursor.fetchall()
+    res=result[0][0]
+    start_date=result[0][1]
+    end_date=result[0][2]
+    return res, start_date, end_date
 def last_guess_game(num):
     sql = '''
     select match_time, host, guest, website_type, handicap_num, guess, odd, league, result, hot_value, strategy
@@ -161,15 +185,65 @@ if __name__ == '__main__':
     # previous_day = current_time - timedelta(days=1)
     # formatted_time = previous_day.strftime("%Y-%m-%d %H:%M:%S")
     # calculate_suiccess_rate(formatted_time)
-    buy_decision_list = last_guess_game(5)
-    for buy_decision in buy_decision_list:
-        print(buy_decision.game.Host, buy_decision.game.Guest, buy_decision.game.Handicap_num)
-    # game_info = entity.GameInfo("2023-01-01 00:00:00", "host", "guest", [1.0, 2.0, 3.0], [1.0, 2.0, 3.0], "company")
-    # buy_decision = entity.BuyDecision(game_info, 1.0, 2.0, "win")
-    # buy_decision.handi_diff = 0.75
-    # buy_decision.odd_diff = 0.75
+    from datetime import datetime, timedelta
+    import csv
 
-    # insert_buy_decision(buy_decision)
-    # conn.commit()
-    # conn.close()
-    # pass
+    # 设定起始日期和结束日期
+    current_date = datetime.now()
+    with open('tongji.csv', 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
+        csv_writer.writerow(['value', 'timestamp'])
+        for i in range(20):
+            start_date = current_date -  timedelta(days=i)
+            next_date = start_date + timedelta(days=1)
+            res = select_last_7days_game(start_date, next_date)
+            timestamp_format = '%Y-%m-%d %H:%M:%S.%f'
+
+            # print(res[1])
+            # date_object = datetime.strptime(res[1], timestamp_format)
+            # t = str(date_object.month)+ "." + str(date_object.day)
+            t = res[1]
+            if res[0] == None:
+                res = (0, t)
+            csv_writer.writerow([res[0], t])
+    # # 遍历每一天
+    # with open('tongji.csv', 'w', newline='') as csv_file:
+    #     csv_writer = csv.writer(csv_file)
+    #     csv_writer.writerow(['value', 'timestamp'])
+    #     current_date = start_date
+    #     while current_date <= end_date:
+    #         next_date = current_date + timedelta(days=1)
+    #         res  = select_last_7days_game(current_date.date(), next_date.date())
+    #         if res[0] == None:
+    #             res = (0, res[1])
+            
+    #         csv_writer.writerow([res[0], res[1]])
+    #         current_date = next_date
+    
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from datetime import datetime
+    df = pd.read_csv('tongji.csv')
+
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    df.set_index('timestamp', inplace=True)
+
+    # 根据需要进行各种统计操作
+    # 例如，计算每天的平均值
+    daily_mean = df.resample('D').mean()
+
+    # 绘制折线图
+    plt.plot(daily_mean.index, daily_mean['value'], label='daily_avg')
+
+    # 添加标题和标签
+    plt.title('recent_lottery_status')
+    plt.xlabel('date')
+    plt.ylabel('win_odd')
+
+    # 添加图例
+    plt.legend()
+    plt.savefig('line_chart.png')
+
+    # 显示图形
+    plt.show()

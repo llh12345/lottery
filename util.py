@@ -16,7 +16,7 @@ def is_total_same_team(team1, team2):
             common_characters += 1
     l1 = len(team1)
     l2 = len(team2)
-    return common_characters >= min(l1, l2)
+    return common_characters >= max(l1, l2)
 
 def is_after(game_info:entity.GameInfo, mins):
     from datetime import datetime, timedelta
