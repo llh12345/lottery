@@ -13,8 +13,8 @@ import logging
 from flask import Flask, render_template, request
 
 # 配置日志记录器
-logging.basicConfig(level=logging.DEBUG,  # 设置日志级别为DEBUG，可以根据需要调整级别
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s - Line %(lineno)d',
+                    level=logging.DEBUG)
 
 import store
 from flask import Flask, render_template
@@ -27,9 +27,9 @@ BD_TAX = 0.65
 NO_HANDI_FACTOR = 1.0
 HANDI_FACTOR = 3.0
 HANDI_DIFF_FACTOR = 2.0
-EXPECT_ODD_DIFF = 0.1
+EXPECT_ODD_DIFF = 0.15
 EURO_DIFF = 0.1
-
+cnt = 0
 
 def get_data_from_bd():
     current_time = datetime.now()
@@ -266,16 +266,18 @@ def handle_print_table(table, game: entity.GameInfo, game_list: List[entity.Game
 
 def get_handi_factor(game_info: entity.GameInfo, is_host_big):
     handi_diff = 0.5 - abs(game_info.Handicap_num)
-    if abs(handi_diff) > 0.5:
-        return 0.3 / 0.25
     if handi_diff == 0:
         return 0.3 / 0.25
     if is_host_big:
         odd_diff = game_info.Odds[0] -1 - game_info.Handicap_Odds[0]
-        return odd_diff / handi_diff
+        handi_factor = odd_diff / handi_diff
+        handi_factor = max(handi_factor, 0.25/0.25)
+        return handi_factor
     else:
         odd_diff = game_info.Odds[2] -1 - game_info.Handicap_Odds[1]
-        return odd_diff / handi_diff
+        handi_factor = odd_diff / handi_diff
+        handi_factor = max(handi_factor, 0.25/0.25)
+        return handi_factor
 
 def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: [entity.GameInfo]):
     # 北单+1 相当于 对面-1.5（相当于+1.5）
@@ -402,8 +404,8 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
                 store.insert_buy_decision(buy_decision)
                 return buy_decision
     else:
-        if game.Odds[2] / BD_TAX < 2.3:
-            return None
+        # if game.Odds[2] / BD_TAX < 2.3:
+        #     return None
         # 主队是强队
         handi_cap_num_bd = float(game.Handicap_num) - 0.5
         if max_profit_game_list[3].Handicap_num > 0:
@@ -417,6 +419,7 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
         handi_diff = float(max_profit_game_list[3].Handicap_num) - handi_cap_num_bd
         expect_odd = handi_diff * handi_factor + max_profit_game_list[3].Handicap_Odds[0] + 1
         expect_diff = float(game.Odds[0]) / BD_TAX - expect_odd
+        logging.info(game.Guest)
         if expect_diff + EXPECT_ODD_DIFF < 0:
             odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
             handle_print_table(handi_table, game, max_profit_game_list)
@@ -433,7 +436,22 @@ def handle_handi_game(handi_table, game: entity.GameInfo, max_profit_game_list: 
 
             store.insert_buy_decision(buy_decision)
             return buy_decision
-
+        if expect_diff + EXPECT_ODD_DIFF > 0.5:
+            odd_diff = float(game.Odds[0]) / BD_TAX - expect_odd
+            amount = 1000 / float(max_profit_game_list[3].Handicap_Odds[0])
+            logging.info(
+                f"买 {max_profit_game_list[3].matchTime} {max_profit_game_list[3].Host} {max_profit_game_list[3].Handicap_num} {result_dict[0]} {max_profit_game_list[3].Handicap_Odds[0]} 总额 {amount}")
+            buy_decision = entity.BuyDecision(max_profit_game_list[3], amount, max_profit_game_list[3].Handicap_Odds[0],
+                                              result_dict[0])
+            buy_decision.handi_diff = handi_diff
+            buy_decision.odd_diff = abs(odd_diff)
+            buy_decision.expect_diff = expect_diff
+            # 热度值
+            # logging.info(f"Hot_Value: {buy_decision.Hot_Value}")
+            buy_decision.Hot_Value = round(abs(expect_diff) / expect_odd * expect_odd, 2)
+            buy_decision.Strategy = '让球'
+            store.insert_buy_decision(buy_decision)
+            return buy_decision
 
 def start_to_get_solution():
     buy_decisions = []
@@ -450,13 +468,17 @@ def start_to_get_solution():
         for game2 in games_info_list_website:
             if is_same_game(game, game2):
                 website_games_list.append(game2)
-        if len(website_games_list) == 0 or not util.is_after(website_games_list[0], 60 * 12):
+        if len(website_games_list) == 0 or not util.is_after(website_games_list[0], 60 * 8):
             continue
         max_profit_game_list = find_max_odd_from_website(website_games_list)
         buy_decision = handle_handi_game(handi_table, game, max_profit_game_list)
         if buy_decision is not None:
             buy_decisions.append(buy_decision)
+    if len(buy_decisions) == 0:
+        return [], handi_table
     # logging.info(handi_table)
+    buy_decisions = sorted(buy_decisions, key=lambda x: (x.game.matchTime, x.game.League,-x.Hot_Value ))
+
     return buy_decisions, handi_table
 
 
@@ -467,8 +489,13 @@ app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 't
 
 @app.route('/test')
 def test():
-    buy_decisions, handi_table = start_to_get_solution()
-    return render_template('table_template.html', data=buy_decisions)
+    global buy_decisions_before
+    global cnt
+
+    logging.debug(f'test {len(buy_decisions_before)} {cnt}')
+    if len(buy_decisions_before) == 0:
+        buy_decisions_before, handi_table = start_to_get_solution()
+    return render_template('table_template.html', data=buy_decisions_before)
 
 
 @app.route('/index')
@@ -495,14 +522,15 @@ def last_guess():
 
 def crontab():
     logging.info("start crontab")
-    global buy_decisions_before
 
     while True:
         logging.info(datetime.now())
         buy_decisions, handi_tables = start_to_get_solution()
-        with lock:
-            global buy_decisions_before
-            buy_decisions_before = buy_decisions
+        global buy_decisions_before
+        buy_decisions_before = buy_decisions
+        global cnt
+        cnt += 1
+        logging.debug("update buy decisions before")
         result_str = ''
         for buy_decision in buy_decisions_before:
             result_str = result_str + f"{buy_decision.game.matchTime} {buy_decision.game.Host} {buy_decision.game.Guest} {buy_decision.odd} {buy_decision.guess} \n"
@@ -521,10 +549,10 @@ def crontab_update_result():
 
 
 if __name__ == '__main__':
-    process1 = multiprocessing.Process(target=crontab)
-    process1.start()
-    process2 = multiprocessing.Process(target=crontab_update_result)
-    process2.start()
+    thread1 = threading.Thread(target=crontab)
+    thread1.start()
+    thread2 = threading.Thread(target=crontab_update_result)
+    thread2.start()
     app.run(host='0.0.0.0', port=9191)
 
 
